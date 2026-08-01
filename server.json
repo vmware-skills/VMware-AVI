@@ -1,18 +1,18 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.zw008/vmware-avi",
+  "name": "io.github.vmware-skills/vmware-avi",
   "title": "VMware AVI",
   "description": "VMware AVI (NSX ALB) load balancer plus AKO Kubernetes ops \u2014 29 MCP tools.",
   "repository": {
     "url": "https://github.com/vmware-skills/VMware-AVI",
     "source": "github"
   },
-  "version": "1.8.8",
+  "version": "1.8.9",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "vmware-avi",
-      "version": "1.8.8",
+      "version": "1.8.9",
       "transport": {
         "type": "stdio"
       }
