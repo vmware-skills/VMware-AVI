@@ -15,13 +15,13 @@ AVI (NSX Advanced Load Balancer) management and AKO Kubernetes operations tool â
 >
 > | Skill | Scope | Install |
 > |-------|-------|---------|
-> | **[vmware-aiops](https://github.com/zw008/VMware-AIops)** | VM lifecycle, deployment, guest ops, cluster | `uv tool install vmware-aiops` |
-> | **[vmware-monitor](https://github.com/zw008/VMware-Monitor)** | Read-only: inventory, health, alarms, events | `uv tool install vmware-monitor` |
-> | **[vmware-storage](https://github.com/zw008/VMware-Storage)** | Datastores, iSCSI, vSAN management | `uv tool install vmware-storage` |
-> | **[vmware-vks](https://github.com/zw008/VMware-VKS)** | Tanzu Namespaces, TKC cluster lifecycle | `uv tool install vmware-vks` |
-> | **[vmware-nsx](https://github.com/zw008/VMware-NSX)** | NSX networking: segments, gateways, NAT | `uv tool install vmware-nsx-mgmt` |
-> | **[vmware-nsx-security](https://github.com/zw008/VMware-NSX-Security)** | DFW firewall rules, security groups | `uv tool install vmware-nsx-security` |
-> | **[vmware-aria](https://github.com/zw008/VMware-Aria)** | Aria Ops: metrics, alerts, capacity | `uv tool install vmware-aria` |
+> | **[vmware-aiops](https://github.com/vmware-skills/VMware-AIops)** | VM lifecycle, deployment, guest ops, cluster | `uv tool install vmware-aiops` |
+> | **[vmware-monitor](https://github.com/vmware-skills/VMware-Monitor)** | Read-only: inventory, health, alarms, events | `uv tool install vmware-monitor` |
+> | **[vmware-storage](https://github.com/vmware-skills/VMware-Storage)** | Datastores, iSCSI, vSAN management | `uv tool install vmware-storage` |
+> | **[vmware-vks](https://github.com/vmware-skills/VMware-VKS)** | Tanzu Namespaces, TKC cluster lifecycle | `uv tool install vmware-vks` |
+> | **[vmware-nsx](https://github.com/vmware-skills/VMware-NSX)** | NSX networking: segments, gateways, NAT | `uv tool install vmware-nsx-mgmt` |
+> | **[vmware-nsx-security](https://github.com/vmware-skills/VMware-NSX-Security)** | DFW firewall rules, security groups | `uv tool install vmware-nsx-security` |
+> | **[vmware-aria](https://github.com/vmware-skills/VMware-Aria)** | Aria Ops: metrics, alerts, capacity | `uv tool install vmware-aria` |
 
 [![PyPI](https://img.shields.io/pypi/v/vmware-avi)](https://pypi.org/project/vmware-avi/)
 [![Python](https://img.shields.io/pypi/pyversions/vmware-avi)](https://pypi.org/project/vmware-avi/)
@@ -494,7 +494,7 @@ Force resync triggers AKO to re-reconcile all K8s objects. If the drift persists
 
 ### Security Details
 
-- **Source Code**: [github.com/zw008/VMware-AVI](https://github.com/zw008/VMware-AVI)
+- **Source Code**: [github.com/vmware-skills/VMware-AVI](https://github.com/vmware-skills/VMware-AVI)
 - **Config File Contents**: `config.yaml` stores controller addresses, usernames, and AKO settings. No passwords or tokens. All secrets stored exclusively in `.env`
 - **Webhook Data Scope**: Disabled by default. No third-party data transmission
 - **TLS Verification**: Enabled by default. Disable only for self-signed certificate environments
@@ -507,15 +507,15 @@ Force resync triggers AKO to re-reconcile all K8s objects. If the drift persists
 
 | Skill | Scope | Tools | Install |
 |-------|-------|:-----:|---------|
-| **[vmware-avi](https://github.com/zw008/VMware-AVI)** | AVI load balancer, AKO K8s operations | 28 | `uv tool install vmware-avi` |
-| **[vmware-aiops](https://github.com/zw008/VMware-AIops)** | VM lifecycle, deployment, guest ops, cluster | 49 | `uv tool install vmware-aiops` |
-| **[vmware-monitor](https://github.com/zw008/VMware-Monitor)** | Read-only monitoring, alarms, events | 27 | `uv tool install vmware-monitor` |
-| **[vmware-storage](https://github.com/zw008/VMware-Storage)** | Datastores, iSCSI, vSAN | 11 | `uv tool install vmware-storage` |
-| **[vmware-vks](https://github.com/zw008/VMware-VKS)** | Tanzu Namespaces, TKC cluster lifecycle | 20 | `uv tool install vmware-vks` |
-| **[vmware-nsx](https://github.com/zw008/VMware-NSX)** | NSX segments, gateways, NAT, routing | 33 | `uv tool install vmware-nsx-mgmt` |
-| **[vmware-nsx-security](https://github.com/zw008/VMware-NSX-Security)** | DFW firewall, security groups, IDS/IPS | 21 | `uv tool install vmware-nsx-security` |
-| **[vmware-aria](https://github.com/zw008/VMware-Aria)** | Aria Ops: metrics, alerts, capacity | 28 | `uv tool install vmware-aria` |
-| **[vmware-harden](https://github.com/zw008/VMware-Harden)** | Compliance baselines, drift detection | 6 | `uv tool install vmware-harden` |
+| **[vmware-avi](https://github.com/vmware-skills/VMware-AVI)** | AVI load balancer, AKO K8s operations | 28 | `uv tool install vmware-avi` |
+| **[vmware-aiops](https://github.com/vmware-skills/VMware-AIops)** | VM lifecycle, deployment, guest ops, cluster | 49 | `uv tool install vmware-aiops` |
+| **[vmware-monitor](https://github.com/vmware-skills/VMware-Monitor)** | Read-only monitoring, alarms, events | 27 | `uv tool install vmware-monitor` |
+| **[vmware-storage](https://github.com/vmware-skills/VMware-Storage)** | Datastores, iSCSI, vSAN | 11 | `uv tool install vmware-storage` |
+| **[vmware-vks](https://github.com/vmware-skills/VMware-VKS)** | Tanzu Namespaces, TKC cluster lifecycle | 20 | `uv tool install vmware-vks` |
+| **[vmware-nsx](https://github.com/vmware-skills/VMware-NSX)** | NSX segments, gateways, NAT, routing | 33 | `uv tool install vmware-nsx-mgmt` |
+| **[vmware-nsx-security](https://github.com/vmware-skills/VMware-NSX-Security)** | DFW firewall, security groups, IDS/IPS | 21 | `uv tool install vmware-nsx-security` |
+| **[vmware-aria](https://github.com/vmware-skills/VMware-Aria)** | Aria Ops: metrics, alerts, capacity | 28 | `uv tool install vmware-aria` |
+| **[vmware-harden](https://github.com/vmware-skills/VMware-Harden)** | Compliance baselines, drift detection | 6 | `uv tool install vmware-harden` |
 
 ---
 

@@ -29,7 +29,7 @@ This installs the CLI (`vmware-avi`, with `vmware-avi mcp` subcommand for the MC
 ### Development Install
 
 ```bash
-git clone https://github.com/zw008/VMware-AVI.git
+git clone https://github.com/vmware-skills/VMware-AVI.git
 cd VMware-AVI
 uv pip install -e ".[dev]"
 ```
@@ -43,7 +43,7 @@ For platforms that prefer containerized MCP servers (e.g., Smithery registry, Ku
 Build and run the MCP server in a container. The image uses `python:3.12-slim` with `uv` for dependency installation and runs `python -m vmware_avi.mcp_server` on stdio (no port exposed — MCP uses stdin/stdout).
 
 ```bash
-git clone https://github.com/zw008/VMware-AVI.git
+git clone https://github.com/vmware-skills/VMware-AVI.git
 cd VMware-AVI
 
 # Build

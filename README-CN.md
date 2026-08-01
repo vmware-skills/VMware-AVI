@@ -15,13 +15,13 @@ AVI（NSX 高级负载均衡器）管理与 AKO Kubernetes 运维工具 — 10 �
 >
 > | 技能 | 范围 | 安装 |
 > |------|------|------|
-> | **[vmware-aiops](https://github.com/zw008/VMware-AIops)** | VM 生命周期、部署、Guest Ops、集群 | `uv tool install vmware-aiops` |
-> | **[vmware-monitor](https://github.com/zw008/VMware-Monitor)** | 只读：资源清单、健康检查、告警、事件 | `uv tool install vmware-monitor` |
-> | **[vmware-storage](https://github.com/zw008/VMware-Storage)** | 数据存储、iSCSI、vSAN 管理 | `uv tool install vmware-storage` |
-> | **[vmware-vks](https://github.com/zw008/VMware-VKS)** | Tanzu 命名空间、TKC 集群生命周期 | `uv tool install vmware-vks` |
-> | **[vmware-nsx](https://github.com/zw008/VMware-NSX)** | NSX 网络：Segment、网关、NAT | `uv tool install vmware-nsx-mgmt` |
-> | **[vmware-nsx-security](https://github.com/zw008/VMware-NSX-Security)** | DFW 防火墙规则、安全组 | `uv tool install vmware-nsx-security` |
-> | **[vmware-aria](https://github.com/zw008/VMware-Aria)** | Aria Ops：指标、告警、容量 | `uv tool install vmware-aria` |
+> | **[vmware-aiops](https://github.com/vmware-skills/VMware-AIops)** | VM 生命周期、部署、Guest Ops、集群 | `uv tool install vmware-aiops` |
+> | **[vmware-monitor](https://github.com/vmware-skills/VMware-Monitor)** | 只读：资源清单、健康检查、告警、事件 | `uv tool install vmware-monitor` |
+> | **[vmware-storage](https://github.com/vmware-skills/VMware-Storage)** | 数据存储、iSCSI、vSAN 管理 | `uv tool install vmware-storage` |
+> | **[vmware-vks](https://github.com/vmware-skills/VMware-VKS)** | Tanzu 命名空间、TKC 集群生命周期 | `uv tool install vmware-vks` |
+> | **[vmware-nsx](https://github.com/vmware-skills/VMware-NSX)** | NSX 网络：Segment、网关、NAT | `uv tool install vmware-nsx-mgmt` |
+> | **[vmware-nsx-security](https://github.com/vmware-skills/VMware-NSX-Security)** | DFW 防火墙规则、安全组 | `uv tool install vmware-nsx-security` |
+> | **[vmware-aria](https://github.com/vmware-skills/VMware-Aria)** | Aria Ops：指标、告警、容量 | `uv tool install vmware-aria` |
 
 [![PyPI](https://img.shields.io/pypi/v/vmware-avi)](https://pypi.org/project/vmware-avi/)
 [![Python](https://img.shields.io/pypi/pyversions/vmware-avi)](https://pypi.org/project/vmware-avi/)
@@ -493,7 +493,7 @@ vmware-avi-mcp
 
 ### 安全详情
 
-- **源代码**：[github.com/zw008/VMware-AVI](https://github.com/zw008/VMware-AVI)
+- **源代码**：[github.com/vmware-skills/VMware-AVI](https://github.com/vmware-skills/VMware-AVI)
 - **配置文件内容**：`config.yaml` 仅存储控制器地址、用户名和 AKO 设置。不含密码或 token。所有密钥仅存于 `.env`
 - **Webhook 数据范围**：默认禁用，无第三方数据传输
 - **TLS 验证**：默认启用。仅在自签名证书环境下禁用
@@ -506,15 +506,15 @@ vmware-avi-mcp
 
 | 技能 | 范围 | 工具数 | 安装 |
 |------|------|:------:|------|
-| **[vmware-avi](https://github.com/zw008/VMware-AVI)** | AVI 负载均衡、AKO K8s 运维 | 28 | `uv tool install vmware-avi` |
-| **[vmware-aiops](https://github.com/zw008/VMware-AIops)** | VM 生命周期、部署、Guest Ops、集群 | 49 | `uv tool install vmware-aiops` |
-| **[vmware-monitor](https://github.com/zw008/VMware-Monitor)** | 只读监控、告警、事件 | 27 | `uv tool install vmware-monitor` |
-| **[vmware-storage](https://github.com/zw008/VMware-Storage)** | 数据存储、iSCSI、vSAN | 11 | `uv tool install vmware-storage` |
-| **[vmware-vks](https://github.com/zw008/VMware-VKS)** | Tanzu 命名空间、TKC 集群生命周期 | 20 | `uv tool install vmware-vks` |
-| **[vmware-nsx](https://github.com/zw008/VMware-NSX)** | NSX Segment、网关、NAT、路由 | 33 | `uv tool install vmware-nsx-mgmt` |
-| **[vmware-nsx-security](https://github.com/zw008/VMware-NSX-Security)** | DFW 防火墙、安全组、IDS/IPS | 21 | `uv tool install vmware-nsx-security` |
-| **[vmware-aria](https://github.com/zw008/VMware-Aria)** | Aria Ops：指标、告警、容量 | 28 | `uv tool install vmware-aria` |
-| **[vmware-harden](https://github.com/zw008/VMware-Harden)** | 合规基线、Drift 检测 | 6 | `uv tool install vmware-harden` |
+| **[vmware-avi](https://github.com/vmware-skills/VMware-AVI)** | AVI 负载均衡、AKO K8s 运维 | 28 | `uv tool install vmware-avi` |
+| **[vmware-aiops](https://github.com/vmware-skills/VMware-AIops)** | VM 生命周期、部署、Guest Ops、集群 | 49 | `uv tool install vmware-aiops` |
+| **[vmware-monitor](https://github.com/vmware-skills/VMware-Monitor)** | 只读监控、告警、事件 | 27 | `uv tool install vmware-monitor` |
+| **[vmware-storage](https://github.com/vmware-skills/VMware-Storage)** | 数据存储、iSCSI、vSAN | 11 | `uv tool install vmware-storage` |
+| **[vmware-vks](https://github.com/vmware-skills/VMware-VKS)** | Tanzu 命名空间、TKC 集群生命周期 | 20 | `uv tool install vmware-vks` |
+| **[vmware-nsx](https://github.com/vmware-skills/VMware-NSX)** | NSX Segment、网关、NAT、路由 | 33 | `uv tool install vmware-nsx-mgmt` |
+| **[vmware-nsx-security](https://github.com/vmware-skills/VMware-NSX-Security)** | DFW 防火墙、安全组、IDS/IPS | 21 | `uv tool install vmware-nsx-security` |
+| **[vmware-aria](https://github.com/vmware-skills/VMware-Aria)** | Aria Ops：指标、告警、容量 | 28 | `uv tool install vmware-aria` |
+| **[vmware-harden](https://github.com/vmware-skills/VMware-Harden)** | 合规基线、Drift 检测 | 6 | `uv tool install vmware-harden` |
 
 ---
 

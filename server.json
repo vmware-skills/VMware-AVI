@@ -4,7 +4,7 @@
   "title": "VMware AVI",
   "description": "VMware AVI (NSX ALB) load balancer plus AKO Kubernetes ops \u2014 29 MCP tools.",
   "repository": {
-    "url": "https://github.com/zw008/VMware-AVI",
+    "url": "https://github.com/vmware-skills/VMware-AVI",
     "source": "github"
   },
   "version": "1.8.8",
