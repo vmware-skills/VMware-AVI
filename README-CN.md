@@ -1,4 +1,4 @@
-<!-- mcp-name: io.github.zw008/vmware-avi -->
+<!-- mcp-name: io.github.vmware-skills/vmware-avi -->
 # VMware AVI
 
 > **作者**: Wei Zhou, VMware by Broadcom — wei-wz.zhou@broadcom.com
