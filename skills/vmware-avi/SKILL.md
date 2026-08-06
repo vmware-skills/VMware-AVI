@@ -7,7 +7,7 @@ description: >
   service engine health, AKO pod troubleshooting, AKO Helm config management, Ingress annotation validation, K8s-to-Controller sync diagnostics,
   and multi-cluster AKO overview.
   Always use it for "virtual service", "pool member", "AKO status", "AKO logs", "ingress diagnose", "ssl expiry", "load balancer", "NSX ALB",
-  "AVI controller", "AKO sync", or "负载均衡" tasks.
+  "AVI controller", "Avi Load Balancer", "AKO sync", or "负载均衡" tasks.
   Do NOT use to set up or configure nginx/HAProxy/Traefik from scratch — those are not AVI tasks.
   For VM lifecycle use vmware-aiops, for NSX networking use vmware-nsx, for Kubernetes cluster lifecycle (Supervisor/TKC) use vmware-vks.
 installer:
