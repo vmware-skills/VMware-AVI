@@ -22,6 +22,13 @@ dependencies = [
     "vmware-policy>=1.8.8,<2.0",
 ]
 
+
+[project.urls]
+Homepage = "https://github.com/vmware-skills/VMware-AVI"
+Repository = "https://github.com/vmware-skills/VMware-AVI"
+Issues = "https://github.com/vmware-skills/VMware-AVI/issues"
+Changelog = "https://github.com/vmware-skills/VMware-AVI/blob/main/RELEASE_NOTES.md"
+
 [dependency-groups]
 dev = [
     "pytest>=8.0,<10.0",
