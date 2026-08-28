@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.vmware-skills/vmware-avi",
   "title": "VMware AVI",
-  "description": "VMware AVI (NSX ALB) load balancer plus AKO Kubernetes ops \u2014 29 MCP tools.",
+  "description": "VMware AVI (NSX ALB) load balancer plus AKO Kubernetes ops — 28 MCP tools.",
   "repository": {
     "url": "https://github.com/vmware-skills/VMware-AVI",
     "source": "github"

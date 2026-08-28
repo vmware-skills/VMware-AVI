@@ -3,7 +3,7 @@
   "name": "vmware-avi",
   "displayName": "VMware AVI",
   "version": "1.8.9",
-  "description": "VMware AVI (NSX ALB) load balancer plus AKO Kubernetes ops — 29 MCP tools.",
+  "description": "VMware AVI (NSX ALB) load balancer plus AKO Kubernetes ops — 28 MCP tools.",
   "author": {
     "name": "Wei Zhou",
     "email": "zhouwei008@gmail.com",
