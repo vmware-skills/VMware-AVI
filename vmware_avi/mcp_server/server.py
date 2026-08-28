@@ -20,10 +20,16 @@ from vmware_policy import (
 
 from vmware_avi.config import ConfigError
 from vmware_avi.connection import AviApiError
+from vmware_avi import __version__
 
 _log = logging.getLogger("vmware-avi-mcp")
 
 mcp = FastMCP("vmware-avi")
+
+# FastMCP takes no version argument and leaves the lowlevel server's at
+# None, which makes `initialize` answer with the MCP SDK's version rather
+# than ours. Set it so a client can tell which release it is talking to.
+mcp._mcp_server.version = __version__
 
 
 # ---------------------------------------------------------------------------
