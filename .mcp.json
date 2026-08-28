@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "vmware-avi": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "vmware-avi==1.8.9",
+        "vmware-avi-mcp"
+      ]
+    }
+  }
+}

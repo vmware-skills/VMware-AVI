@@ -1,0 +1,21 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "vmware-avi",
+  "displayName": "VMware AVI",
+  "version": "1.8.9",
+  "description": "VMware AVI (NSX ALB) load balancer plus AKO Kubernetes ops — 29 MCP tools.",
+  "author": {
+    "name": "Wei Zhou",
+    "email": "zhouwei008@gmail.com",
+    "url": "https://github.com/vmware-skills"
+  },
+  "homepage": "https://github.com/vmware-skills/VMware-AVI",
+  "repository": "https://github.com/vmware-skills/VMware-AVI",
+  "license": "MIT",
+  "keywords": [
+    "avi",
+    "mcp",
+    "vmware",
+    "vsphere"
+  ]
+}
