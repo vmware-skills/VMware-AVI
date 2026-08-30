@@ -232,13 +232,36 @@ class AppConfig:
         return self.controllers[0]
 
 
+def resolve_config_path(config_path: Path | None = None) -> Path:
+    """Which config file this skill will read: explicit arg, env var, default.
+
+    The single place that precedence lives. Before 2026-08-30 it was written
+    out three times and no two of them agreed: this function's job was done
+    inline in ``load_config``, which ignored ``VMWARE_AVI_CONFIG`` entirely —
+    and every tool reaches its controller through an ``ops`` function calling
+    ``load_config()``, so no tool honoured the variable; the MCP server's
+    policy environment resolver went through ``mtime_cached_loader``, which
+    does read it; and the doctor checked ``CONFIG_FILE`` and ``CONFIG_DIR``. So
+    the policy engine scoped its rules from one file while the operation it was
+    gating ran against a controller named in another, and the doctor reported
+    on a third possibility. The variable is this skill's advertised
+    ``primaryEnv``, so the CLI honouring it is the documented behaviour —
+    ignoring it was the bug. Copies of a rule do not disagree loudly; they
+    disagree slowly (形态 #6).
+    """
+    if config_path is not None:
+        return config_path
+    env_override = os.environ.get("VMWARE_AVI_CONFIG")
+    return Path(env_override) if env_override else CONFIG_FILE
+
+
 def load_config(config_path: Path | None = None) -> AppConfig:
     """Load config from YAML file, with env var overrides for passwords."""
-    path = config_path or CONFIG_FILE
+    path = resolve_config_path(config_path)
     if not path.exists():
         raise FileNotFoundError(
             "Config file not found. Run 'vmware-avi init' to create one, or copy "
-            f"config.example.yaml to {CONFIG_FILE} and edit it. Looked in: {path}"
+            f"config.example.yaml to {path} and edit it. Looked in: {path}"
         )
 
     with open(path) as f:

@@ -12,7 +12,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from vmware_avi.config import CONFIG_DIR, CONFIG_FILE, ENV_FILE, load_config
+from vmware_avi.config import ENV_FILE, load_config, resolve_config_path
 
 _log = logging.getLogger("vmware-avi.doctor")
 console = Console()
@@ -31,11 +31,19 @@ def run_doctor() -> bool:
     """Run all diagnostic checks. Returns True if all pass."""
     console.print("\n[bold]vmware-avi doctor[/bold]\n")
 
-    if not CONFIG_FILE.exists():
+    # The file the tools will open, resolved exactly as they resolve it —
+    # including $VMWARE_AVI_CONFIG, which this doctor used to skip. With the
+    # variable set it inspected ~/.vmware-avi/config.yaml and reported on that,
+    # while every ops function opened a different controller (2026-08-30).
+    # Every row below names this path rather than the default, for the same
+    # reason: a verdict about a file nothing reads is not a verdict.
+    config_file = resolve_config_path()
+
+    if not config_file.exists():
         console.print(
             "[yellow]No config found.[/yellow] Run [cyan]vmware-avi init[/cyan] "
             "for guided setup (writes config.yaml + .env, grep-safe password).\n"
-            f"Or create {CONFIG_FILE} and {ENV_FILE} by hand "
+            f"Or create {config_file} and {ENV_FILE} by hand "
             "(see config.example.yaml and .env.example).\n"
         )
 
@@ -45,8 +53,8 @@ def run_doctor() -> bool:
     results.append(
         _check(
             "Config directory exists",
-            CONFIG_DIR.exists(),
-            str(CONFIG_DIR),
+            config_file.parent.exists(),
+            str(config_file.parent),
         )
     )
 
@@ -54,8 +62,8 @@ def run_doctor() -> bool:
     results.append(
         _check(
             "config.yaml exists",
-            CONFIG_FILE.exists(),
-            str(CONFIG_FILE),
+            config_file.exists(),
+            str(config_file),
         )
     )
 
@@ -105,7 +113,7 @@ def run_doctor() -> bool:
     results.append(_check("helm in PATH", helm is not None, helm or "not found"))
 
     # 8. kubeconfig
-    if CONFIG_FILE.exists():
+    if config_file.exists():
         try:
             cfg = load_config()
             kc_path = Path(cfg.ako.kubeconfig).expanduser()
@@ -114,7 +122,7 @@ def run_doctor() -> bool:
             results.append(_check("kubeconfig exists", False, str(exc)))
 
     # 9. Controller connectivity
-    if CONFIG_FILE.exists():
+    if config_file.exists():
         try:
             cfg = load_config()
             for ctrl in cfg.controllers:
