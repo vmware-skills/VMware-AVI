@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vmware-avi"
-version = "1.8.12"
+version = "1.8.13"
 description = "AVI (NSX Advanced Load Balancer) management and AKO Kubernetes operations tool"
 readme = "README.md"
 license = "MIT"

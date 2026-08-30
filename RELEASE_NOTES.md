@@ -1,3 +1,32 @@
+## v1.8.13 — the credential was kept out of the audit and printed to the screen
+
+`ako_config_diff` and `ako_config_upgrade` were declared `sensitive_result` so
+the credential stayed out of the audit database — and both still printed the raw
+helm output to stdout, where `avicredentials.password` reached the agent's
+context and the operator's terminal anyway. Redacting the stored copy while
+leaving the displayed one is worse than not claiming redaction, because the
+release notes then say it is protected.
+
+Six more stdout writers had the same exposure, including one with no redaction,
+no sanitize and no markup guard at all. Pod logs are deliberately left
+unredacted, and that judgement is written down rather than left implicit.
+
+**The `vmware-policy` floor moves to >=1.11.0.** Policy 1.11.0 stops the engine
+failing open: on a host whose locale is not UTF-8, reading `rules.yaml` raised a
+decode error that was swallowed, and a `freeze-production-writes` rule came back
+ALLOW. No new API is used here, so the floor could have stayed — it is raised
+because leaving it low means a user resolving 1.10.0 keeps the permissive engine
+and the fix never reaches them. One behaviour travels with it: on a host whose
+rules file cannot be read, operations move from all-allowed to all-denied.
+`VMWARE_POLICY_DISABLED=1` is checked above the rules, so the escape hatch does
+not itself depend on them loading.
+
+Also in this release: the suite no longer appends to the operator's real
+`~/.vmware/audit.db`. It held over 30,000 rows dominated by tool names nobody
+had invoked, including 1,400 entries for a destructive operation that never
+happened — an audit trail carrying test fiction cannot answer the question it is
+kept for.
+
 ## v1.8.12 — the schema an agent reads now carries the descriptions
 
 Parameter descriptions reach the JSON schema for the first time. An MCP client
