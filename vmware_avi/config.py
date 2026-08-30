@@ -264,7 +264,7 @@ def load_config(config_path: Path | None = None) -> AppConfig:
             f"config.example.yaml to {path} and edit it. Looked in: {path}"
         )
 
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         raw = yaml.safe_load(f) or {}
 
     if isinstance(raw, dict) and "read_only" in raw:

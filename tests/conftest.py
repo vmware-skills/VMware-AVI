@@ -6,6 +6,38 @@ tests run without real infrastructure.
 
 from __future__ import annotations
 
+import atexit
+import os
+import pathlib
+import shutil
+import tempfile
+
+from vmware_policy.audit import reset_engine
+
+# ── session-wide sandbox: the suite must not touch the operator's real files ──
+#
+# At import time, not in a fixture: the per-skill audit logger binds
+# Path.home() when its module is imported, and a fixture — even session-scoped
+# autouse — runs after collection has already imported every test module and,
+# with them, the package.
+#
+# OPS_HOME moves vmware_policy's shared audit.db; HOME moves the per-skill
+# JSON Lines log under ~/.vmware-avi, which resolves through Path.home() and
+# ignores OPS_HOME. USERPROFILE is the Windows spelling.
+#
+# Before this, one run of this suite appended 7 rows to the operator's real
+# ~/.vmware/audit.db — which held 30,779, dominated by tool names nobody had
+# invoked, including 1,400 ako_config_upgrade entries for a destructive
+# operation that never happened.
+REAL_HOME = pathlib.Path(os.path.expanduser("~"))
+SANDBOX_HOME = pathlib.Path(tempfile.mkdtemp(prefix="vmware-avi-tests-"))
+os.environ["HOME"] = str(SANDBOX_HOME)
+os.environ["OPS_HOME"] = str(SANDBOX_HOME / ".vmware")
+os.environ["USERPROFILE"] = str(SANDBOX_HOME)
+reset_engine()
+atexit.register(shutil.rmtree, SANDBOX_HOME, True)
+
+import pathlib
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch

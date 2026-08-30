@@ -105,7 +105,7 @@ def run_init(force: bool = False, skip_test: bool = False) -> int:
             "namespace": "avi-system",
         },
     }
-    CONFIG_FILE.write_text(yaml.safe_dump(config, sort_keys=False))
+    CONFIG_FILE.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
     env_key = _write_env(controller["name"], password)
 
     console.print()

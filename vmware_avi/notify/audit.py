@@ -34,7 +34,7 @@ def log_operation(
 
     try:
         AUDIT_LOG.parent.mkdir(parents=True, exist_ok=True)
-        with open(AUDIT_LOG, "a") as f:
+        with open(AUDIT_LOG, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry) + "\n")
     except OSError as exc:
         _log.warning("Failed to write audit log: %s", exc)
