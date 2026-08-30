@@ -245,6 +245,10 @@ def vs_toggle(name: str, enable: bool, confirmed: bool = False) -> str:
     Args:
         name: Exact Virtual Service name.
         enable: true to enable, false to disable.
+        confirmed: Gates the disable only. With enable=false, the default false
+            returns a preview naming the VS that would stop serving traffic and
+            changes nothing; true performs the disable. Ignored when enable=true
+            — enabling always executes.
     """
     from vmware_avi.ops.vs_mgmt import toggle_vs
 
@@ -297,7 +301,10 @@ def pool_members(pool: str) -> str:
     name. Reports configured state only, not live health-monitor results.
 
     Args:
-        pool: Pool name.
+        pool: Exact pool name as shown by pool_list — matched literally, not
+            fuzzily, and an unknown name is refused rather than ignored. Pools
+            are often named differently from the Virtual Services that use
+            them, so do not infer it from a VS name.
     """
     from vmware_avi.ops.pool_mgmt import list_pool_members
 
@@ -320,7 +327,10 @@ def pool_member_enable(pool: str, server: str) -> str:
     IP. The server must already belong to the pool — this adds nothing.
 
     Args:
-        pool: Pool name.
+        pool: Exact pool name as shown by pool_list — matched literally, not
+            fuzzily, and an unknown name is refused rather than ignored. Pools
+            are often named differently from the Virtual Services that use
+            them, so do not infer it from a VS name.
         server: Server IP address.
     """
     from vmware_avi.ops.pool_mgmt import toggle_pool_member
@@ -347,8 +357,15 @@ def pool_member_disable(pool: str, server: str, confirmed: bool = False) -> str:
     SAFETY: requires confirmed=True; without it you get a preview only.
 
     Args:
-        pool: Pool name.
+        pool: Exact pool name as shown by pool_list — matched literally, not
+            fuzzily, and an unknown name is refused rather than ignored. Pools
+            are often named differently from the Virtual Services that use
+            them, so do not infer it from a VS name.
         server: Server IP address.
+        confirmed: false (the default) returns a preview naming the member and
+            pool, and changes nothing; true disables the member, draining it so
+            existing connections finish while new traffic stops. Reverse it with
+            pool_member_enable.
     """
     if not confirmed:
         return (
@@ -576,6 +593,10 @@ def ako_restart(context: Optional[str] = None, confirmed: bool = False) -> str:
 
     Args:
         context: K8s context name (optional).
+        confirmed: false (the default) returns a preview and changes nothing;
+            true deletes the AKO pod. The StatefulSet recreates it, so this is a
+            restart rather than a removal, but ingress programming pauses until
+            the new pod is Running and brief traffic disruption is possible.
     """
     if not confirmed:
         ctx_hint = f" in context '{context}'" if context else ""
@@ -684,6 +705,11 @@ def ako_config_upgrade(
 
     Args:
         dry_run: Preview without applying (default true).
+        confirmed: Gates the real upgrade only. With dry_run=false, the default
+            false returns a preview naming the chart version and changes nothing;
+            true runs `helm upgrade --reuse-values` against the avi-system
+            release, rolling the AKO pod. Ignored while dry_run=true, which never
+            writes.
         chart_version: Pin the chart, e.g. "1.11.1". Empty = registry latest.
     """
     from vmware_avi.ops.ako_config import upgrade_ako
@@ -853,6 +879,10 @@ def ako_sync_force(context: Optional[str] = None, confirmed: bool = False) -> st
 
     Args:
         context: K8s context name (optional).
+        confirmed: false (the default) returns a preview and changes nothing;
+            true forces the resync, which restarts the AKO pod so it rebuilds
+            every Virtual Service, pool and VS-VIP from the cluster's current
+            resources — brief traffic disruption is possible.
     """
     if not confirmed:
         ctx_hint = f" in context '{context}'" if context else ""

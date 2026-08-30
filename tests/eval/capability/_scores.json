@@ -65,18 +65,18 @@
       },
       "maximum": 6,
       "pct": 100.0,
+      "stale": true,
       "unit": "required entity params",
       "value": 6
     },
     "entry_point_availability": {
       "detail": {
-        "full_entry_points": 19,
-        "read_only_entry_points": 16
+        "full_entry_points": 19
       },
-      "maximum": 22,
-      "pct": 72.7,
+      "maximum": 28,
+      "pct": 67.9,
       "unit": "entry points",
-      "value": 16
+      "value": 19
     },
     "error_actionability": {
       "detail": {
@@ -98,21 +98,21 @@
     "manifest_context_headroom": {
       "detail": {
         "heaviest_tools": {
-          "ako_config_upgrade": 158,
-          "ako_ingress_check": 140,
+          "ako_config_upgrade": 203,
           "ako_ingress_diagnose": 174,
           "ako_logs": 176,
-          "pool_member_disable": 136
+          "ako_restart": 169,
+          "pool_member_disable": 200
         },
-        "manifest_tokens": 3039,
-        "mean_tokens_per_tool": 108.5,
+        "manifest_tokens": 3324,
+        "mean_tokens_per_tool": 118.7,
         "reference_context": 16384,
         "tool_count": 28
       },
       "maximum": 16384,
-      "pct": 81.5,
+      "pct": 79.7,
       "unit": "tokens",
-      "value": 13345
+      "value": 13060
     },
     "parameter_documentation_coverage": {
       "detail": {
@@ -150,6 +150,7 @@
       },
       "maximum": 3039,
       "pct": 25.9,
+      "stale": true,
       "unit": "tokens",
       "value": 787
     },
@@ -210,8 +211,8 @@
     "tool_failure_payload_quality": {
       "detail": {
         "bare_string_error_lines": [
-          144,
-          146
+          148,
+          150
         ],
         "carries_hint": 0,
         "dict_shaped": 0,
