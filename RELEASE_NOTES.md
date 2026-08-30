@@ -1,3 +1,28 @@
+## v1.8.11 — the policy gate and the operation it gated read different files
+
+Found against a real VCF 9.1 estate.
+
+`load_config()` never consulted `VMWARE_AVI_CONFIG`. In this skill the divide ran
+*through the MCP server*: every tool reaches its controller via an `ops` function
+calling `load_config()`, so no tool honoured the variable — while the policy
+environment resolver went through `mtime_cached_loader`, which did. So the rule
+that decides "this is production, it needs a second person" was scoped from one
+file, and the operation it was gating was aimed at another. With the variable
+set, the two could name different controllers.
+
+The precedence now lives in one `resolve_config_path` that the loader, the
+tools and the doctor all use. The doctor's config-directory row reported
+`CONFIG_DIR` rather than the resolved path's parent, and now reports what it
+actually read.
+
+**This changes CLI behaviour**: `vmware-avi` now honours `VMWARE_AVI_CONFIG`,
+where it previously ignored it. The variable is this skill's advertised
+`primaryEnv`, so ignoring it was the defect.
+
+Also: `server.json` never started the MCP server — it carried only the package
+identifier, so a registry client composed `uvx vmware-avi`, which runs the CLI
+and exits.
+
 ## v1.8.10 — two wrong numbers: the server's own version, and the advertised tool count
 
 Both defects were invisible to the test suites and both were user-facing.
