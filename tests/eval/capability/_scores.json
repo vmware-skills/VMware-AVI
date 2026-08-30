@@ -98,25 +98,32 @@
     "manifest_context_headroom": {
       "detail": {
         "heaviest_tools": {
-          "ako_config_upgrade": 203,
-          "ako_ingress_diagnose": 174,
-          "ako_logs": 176,
-          "ako_restart": 169,
-          "pool_member_disable": 200
+          "ako_config_upgrade": 229,
+          "ako_ingress_diagnose": 188,
+          "ako_logs": 190,
+          "pool_member_disable": 215,
+          "vs_toggle": 183
         },
-        "manifest_tokens": 3324,
-        "mean_tokens_per_tool": 118.7,
+        "manifest_tokens": 3588,
+        "mean_tokens_per_tool": 128.1,
         "reference_context": 16384,
         "tool_count": 28
       },
       "maximum": 16384,
-      "pct": 79.7,
+      "pct": 78.1,
       "unit": "tokens",
-      "value": 13060
+      "value": 12796
     },
     "parameter_documentation_coverage": {
       "detail": {
-        "undocumented_by_tool": {}
+        "undocumented_by_tool": {},
+        "value_set_candidates": {
+          "vs_error_logs.since": [
+            "1h",
+            "2d",
+            "30m"
+          ]
+        }
       },
       "maximum": 37,
       "pct": 100.0,
@@ -185,7 +192,7 @@
       "detail": {
         "per_dimension_pct": {
           "args": 100.0,
-          "gotcha": 100.0,
+          "gotcha": 96.4,
           "marker": 100.0,
           "next_hop": 100.0,
           "what": 100.0,
@@ -200,19 +207,21 @@
           "ako_config_upgrade": [],
           "ako_ingress_check": [],
           "ako_ingress_diagnose": [],
-          "ako_ingress_map": []
+          "pool_list": [
+            "gotcha"
+          ]
         }
       },
       "maximum": 168,
-      "pct": 100.0,
+      "pct": 99.4,
       "unit": "points",
-      "value": 168
+      "value": 167
     },
     "tool_failure_payload_quality": {
       "detail": {
         "bare_string_error_lines": [
-          148,
-          150
+          149,
+          151
         ],
         "carries_hint": 0,
         "dict_shaped": 0,
