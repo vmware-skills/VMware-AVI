@@ -61,6 +61,19 @@ All write operations pass through multiple safety layers:
 - Sanitization truncates to 500 characters and strips C0/C1 control characters
 - Output is wrapped in boundary markers when consumed by LLM agents
 
+### Credential Redaction in Command Output
+
+`helm get values`, `helm diff upgrade --reuse-values` and `helm upgrade` all render the AKO release's
+own values — including `avicredentials.password` and the `avi-secret` Secret it templates. In MCP mode
+what an ops function prints *is* the tool result, so every one of those outputs is redacted before it
+is displayed, not only before it is stored: declaring a tool `sensitive_result` keeps the credential
+out of `~/.vmware/audit.db` and does nothing about the copy in the agent's context.
+
+Redaction is structural where the output is a YAML document (`redact_yaml`, parsed and re-emitted) and
+line-oriented where it is not — a helm diff will not parse, and withholding it entirely would cost the
+operator the diff they came to read. Command *stderr* is redacted on the same terms: a tool that fails
+rendering a template prints the values it was handed.
+
 ## Static Analysis
 
 This project is scanned with [Bandit](https://bandit.readthedocs.io/) before every release, targeting 0 Medium+ issues:

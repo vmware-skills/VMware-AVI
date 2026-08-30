@@ -53,6 +53,27 @@ def print_external(target: Console, text: object, max_len: int = 500) -> None:
     )
 
 
+def print_command_failure(target: Console, headline: str, stderr: object) -> None:
+    """Print an authored diagnosis, then the failed command's own words, inert.
+
+    The natural way to write this is one f-string —
+    ``console.print(f"[red]… Cause: {result.stderr}[/red]")`` — and it is wrong in
+    two ways at once. The subprocess's text is external, so it needs
+    :func:`print_external`'s defences, which an interpolation skips: a ``[bold]``
+    in the error is swallowed instead of shown, and a bare ``[/]`` raises
+    ``MarkupError`` and takes the command down at the exact moment it was trying
+    to explain a failure. And a tool that failed rendering a template prints the
+    values it was handed, so its stderr carries the same credentials as its
+    stdout — hence :func:`redact_text` before it is shown.
+
+    Two prints rather than one because only the headline is ours to style.
+    """
+    target.print(headline)
+    body = str(stderr or "").strip()
+    if body:
+        print_external(target, redact_text(body), max_len=4000)
+
+
 def double_confirm(action: str) -> bool:
     """Require double confirmation for destructive operations."""
     console.print(f"\n[bold red]WARNING: {action}[/bold red]")
@@ -104,3 +125,72 @@ def redact_yaml(text: str) -> str:
     if loaded is None:
         return ""
     return yaml.safe_dump(walk(loaded), default_flow_style=False, sort_keys=False)
+
+
+def _is_key_shaped(token: str) -> bool:
+    """True when ``token`` could be a mapping key rather than a phrase of prose.
+
+    Keeps ``Error: failed to render password template`` — whose "key" contains
+    spaces — from being mistaken for a credential assignment and mangled.
+    """
+    return bool(token) and all(c.isalnum() or c in "_-./" for c in token)
+
+
+def _outdent(line: str) -> int:
+    """Depth of ``line``, counting a diff marker as part of the indentation.
+
+    ``+   password: |`` and ``    password: |`` describe the same nesting; the
+    marker is presentation, and its width must not change what counts as a
+    continuation line.
+    """
+    return len(line) - len(line.lstrip(" \t+-"))
+
+
+def redact_text(text: str) -> str:
+    """Blank credential-shaped values in line-oriented output, leaving the rest intact.
+
+    The companion to :func:`redact_yaml` for text that is *not* a YAML document:
+    ``helm diff`` output, ``helm upgrade`` output, a helm error page. Those carry
+    the same ``avicredentials.password`` and the same rendered ``avi-secret``
+    Secret, and this family prints them to an agent — but they will not parse, so
+    ``redact_yaml`` withholds all of it and the operator loses the diff they came
+    to read. Redaction has to leave the document readable or it will be turned off.
+
+    A hand-written pattern is the wrong tool for a structured format (踩坑 #38) and
+    it is not being used as one here: the input is a *line-oriented* format with no
+    parser, so this works line at a time and changes nothing it does not recognise.
+    Everything that is not a ``key: value`` line with a credential-shaped key comes
+    back byte for byte.
+
+    A credential written as a block scalar (``key: |``) keeps its value on the
+    *following* lines, where a line-at-a-time key match would never look, so the
+    continuation is dropped with it.
+
+    This is redaction, not sanitisation: the caller still owes the output
+    :func:`print_external`, which strips control characters and disarms markup.
+    Redact first — ``sanitize`` truncates, and the surviving prefix of a secret is
+    still secret.
+    """
+    out: list[str] = []
+    block_depth: int | None = None
+    for line in text.split("\n"):
+        if block_depth is not None:
+            if line.strip() and _outdent(line) > block_depth:
+                continue  # still inside the redacted value
+            block_depth = None
+
+        head, sep, value = line.partition(":")
+        key = head.strip().lstrip("+-").strip().strip("\"'")
+        if (
+            not sep
+            or not value.strip()
+            or not _is_key_shaped(key)
+            or not any(hint in key.lower() for hint in _SECRET_KEY_HINTS)
+        ):
+            out.append(line)
+            continue
+
+        out.append(f"{head}: <redacted>")
+        if value.strip()[0] in "|>":
+            block_depth = _outdent(line)
+    return "\n".join(out)

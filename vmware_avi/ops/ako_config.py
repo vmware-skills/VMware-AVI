@@ -7,9 +7,23 @@ import subprocess
 
 from rich.console import Console
 
-from vmware_avi._safety import print_external, redact_yaml
+from vmware_avi._safety import (
+    print_command_failure,
+    print_external,
+    redact_text,
+    redact_yaml,
+)
 
 console = Console()
+
+
+def _print_helm_failure(headline: str, stderr: str) -> None:
+    """``print_command_failure`` against this module's console.
+
+    Resolved at call time, because the MCP server rebinds ``console`` on the
+    module to capture what a tool prints.
+    """
+    print_command_failure(console, headline, stderr)
 
 # Official AKO chart location (Broadcom OCI registry). The legacy repo-alias
 # form `avi/ako` was never the published install path.
@@ -31,10 +45,10 @@ def _find_ako_release(namespace: str) -> str:
         timeout=60,
     )
     if result.returncode != 0:
-        console.print(
+        _print_helm_failure(
             "[red]helm list failed. Check that helm is installed and the current "
-            f"kube-context can reach the cluster: helm list -n {namespace}. "
-            f"Cause: {result.stderr.strip()}[/red]"
+            f"kube-context can reach the cluster: helm list -n {namespace}. Cause:[/red]",
+            result.stderr,
         )
         raise SystemExit(1)
 
@@ -66,10 +80,10 @@ def show_ako_config(namespace: str = "avi-system") -> None:
         timeout=120,
     )
     if result.returncode != 0:
-        console.print(
+        _print_helm_failure(
             f"[red]Failed to get Helm values for AKO release '{release}'. Verify the "
-            f"release still exists: helm list -n {namespace}. "
-            f"Cause: {result.stderr.strip()}[/red]"
+            f"release still exists: helm list -n {namespace}. Cause:[/red]",
+            result.stderr,
         )
         raise SystemExit(1)
 
@@ -116,18 +130,23 @@ def diff_ako_config(namespace: str = "avi-system", chart_version: str = "") -> N
         timeout=120,
     )
     if result.returncode != 0:
-        console.print(
+        _print_helm_failure(
             "[yellow]helm-diff plugin may not be installed. "
-            "Install: helm plugin install https://github.com/databus23/helm-diff[/yellow]"
+            "Install: helm plugin install https://github.com/databus23/helm-diff[/yellow]",
+            result.stderr,
         )
-        console.print(f"[red]{result.stderr.strip()}[/red]")
         raise SystemExit(1)
 
     if not result.stdout.strip():
         console.print("[green]No pending changes.[/green]")
     else:
         console.print("\n[bold]Pending Changes[/bold]\n")
-        print_external(console, result.stdout, max_len=4000)
+        # --reuse-values means the diff renders the release's own values, so
+        # avicredentials.password is in it — and so is the avi-secret Secret it
+        # renders, base64 or not. In MCP mode this print IS the tool result, so
+        # declaring the tool sensitive_result only kept it out of the audit
+        # database; it still arrived in the agent's context by this line.
+        print_external(console, redact_text(result.stdout), max_len=4000)
 
 
 def upgrade_ako(
@@ -168,14 +187,16 @@ def upgrade_ako(
 
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     if result.returncode != 0:
-        console.print(
+        _print_helm_failure(
             f"[red]Helm upgrade failed for AKO release '{release}'. The release was not "
             "changed. Preview the change first with ako_config_diff, and pin "
-            "chart_version so preview and apply target one chart. "
-            f"Cause: {result.stderr.strip()}[/red]"
+            "chart_version so preview and apply target one chart. Cause:[/red]",
+            result.stderr,
         )
         raise SystemExit(1)
 
-    print_external(console, result.stdout, max_len=4000)
+    # Same exposure as the diff — helm echoes USER-SUPPLIED VALUES, which is where
+    # avicredentials.password lives. See diff_ako_config.
+    print_external(console, redact_text(result.stdout), max_len=4000)
     if dry_run:
         console.print("\n[yellow]This was a dry-run. Use --no-dry-run to apply.[/yellow]")

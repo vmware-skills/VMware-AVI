@@ -669,12 +669,15 @@ def ako_config_show() -> str:
 # helm renders avicredentials.password and the avi-secret Secret into its
 # diff output. That is a free-form string, so the shared credential-key net
 # cannot see it — the declaration is the only thing that keeps it out of the
-# audit row (VMware-Policy 1.10.0).
+# audit row (VMware-Policy 1.10.0). It does nothing about the *displayed* copy,
+# which in MCP mode is this tool's result: diff_ako_config redacts that.
 @vmware_tool(risk_level="low", sensitive_result=True)
 def ako_config_diff(chart_version: str = "") -> str:
     """[READ] Pending Helm value changes that have not been applied yet.
 
-    Returns helm's diff output; empty means nothing would change.
+    Returns helm's diff output; empty means nothing would change. Credential
+    values in it read `<redacted>` — that is this skill blanking them, not the
+    configured value.
     Use this before ako_config_upgrade — it runs the same command, so the
     preview is real. Note: with chart_version empty the registry's moving latest
     is resolved, so two runs can differ with no local change; read ako_version
@@ -703,7 +706,8 @@ def ako_config_upgrade(
 ) -> str:
     """[WRITE] Apply an AKO Helm upgrade (dry_run=true by default).
 
-    Returns helm's output. Run ako_config_diff first to review the change. Finds
+    Returns helm's output, with credential values blanked to `<redacted>` by this
+    skill. Run ako_config_diff first to review the change. Finds
     the avi-system release automatically and upgrades the Broadcom OCI chart
     with --reuse-values.
 

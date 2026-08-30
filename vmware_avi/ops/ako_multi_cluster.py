@@ -5,9 +5,9 @@ from __future__ import annotations
 import subprocess
 
 from rich.console import Console
-
-from vmware_avi._safety import print_external
 from rich.table import Table
+
+from vmware_avi._safety import print_command_failure, print_external, redact_text
 
 console = Console()
 
@@ -21,10 +21,12 @@ def list_clusters() -> None:
         timeout=30,
     )
     if result.returncode != 0:
-        console.print(
+        print_command_failure(
+            console,
             "[red]Failed to list kube-contexts. Check that kubectl is on PATH and that "
             "KUBECONFIG (or ~/.kube/config) points at a readable file: kubectl config "
-            f"get-contexts. Cause: {result.stderr.strip()}[/red]"
+            "get-contexts. Cause:[/red]",
+            result.stderr,
         )
         raise SystemExit(1)
 
@@ -115,5 +117,9 @@ def show_amko_status() -> None:
     )
     if gslb_check.returncode == 0 and gslb_check.stdout.strip():
         console.print("\n[bold]GSLBConfig:[/bold]\n")
-        console.print(gslb_check.stdout)
+        # The one writer in this package that printed a command's stdout with a
+        # bare console.print: no redaction, no sanitize, no markup=False. A
+        # GSLBConfig carries gslbLeaderCredentials, and cluster-supplied YAML has
+        # no business being parsed as Rich markup.
+        print_external(console, redact_text(gslb_check.stdout), max_len=4000)
     console.print()
