@@ -11,6 +11,7 @@ from typing import Any, Optional
 
 from mcp.server.fastmcp import FastMCP
 from vmware_policy import (
+    describe_tool_parameters,
     mtime_cached_loader,
     report_tool_failure,
     sanitize,
@@ -665,7 +666,11 @@ def ako_config_show() -> str:
         "openWorldHint": True,
     }
 )
-@vmware_tool(risk_level="low")
+# helm renders avicredentials.password and the avi-secret Secret into its
+# diff output. That is a free-form string, so the shared credential-key net
+# cannot see it — the declaration is the only thing that keeps it out of the
+# audit row (VMware-Policy 1.10.0).
+@vmware_tool(risk_level="low", sensitive_result=True)
 def ako_config_diff(chart_version: str = "") -> str:
     """[READ] Pending Helm value changes that have not been applied yet.
 
@@ -691,7 +696,8 @@ def ako_config_diff(chart_version: str = "") -> str:
         "openWorldHint": True,
     }
 )
-@vmware_tool(risk_level="medium")
+# Same helm output as ako_config_diff — see the note there.
+@vmware_tool(risk_level="medium", sensitive_result=True)
 def ako_config_upgrade(
     dry_run: bool = True, confirmed: bool = False, chart_version: str = ""
 ) -> str:
@@ -994,3 +1000,10 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+# The docstrings above are the schema. `describe_tool_parameters` copies each
+# `Args:` entry into the JSON schema an agent actually reads, and closes the
+# object. Without it every parameter reaches the model as a bare name and a
+# type, which is how a wrong guess becomes an unfiltered result or a silent
+# zero-row answer instead of an error (real-hardware round, 2026-08-30).
+_DESCRIBED_PARAMS = describe_tool_parameters(mcp._tool_manager._tools)
