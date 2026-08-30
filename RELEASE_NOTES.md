@@ -1,3 +1,34 @@
+## v1.8.12 — the schema an agent reads now carries the descriptions
+
+Parameter descriptions reach the JSON schema for the first time. An MCP client
+sees the schema, not the docstring, and this repo's coverage of `description`
+and `additionalProperties` was 0% — while nearly every parameter was already
+described in an `Args:` block no client ever receives.
+
+Measured on a real VCF 9.1 estate, the gap produced a silent failure with no
+error at any stage: a parameter name guessed wrong is discarded and the tool
+returns the full unfiltered result; a value guessed wrong (`power_state=
+"running"`) returns 0 rows where there were 11.
+
+vmware-policy 1.10.0's `describe_tool_parameters` copies what is already
+written, so the docstring is now load-bearing and the two cannot drift apart. It
+removes the `Args:` block from the description once copied — both travel in
+every `tools/list` response, so leaving it bills the same sentences twice
+against the manifest's token budget. `additionalProperties` is closed: an open
+schema is room for a model to invent arguments that are then silently
+discarded, which is the other half of the same failure.
+
+**The `vmware-policy` floor moves to >=1.10.0.** Older releases have no
+`describe_tool_parameters`, and resolving one gives an ImportError at server
+start rather than a missing feature.
+
+Also in this release: `ako_config_diff` and `ako_config_upgrade` return raw
+`helm diff`/`upgrade` output, which renders `avicredentials.password` and the
+`avi-secret` Secret — and the audit database stored return values verbatim. Both
+now declare `sensitive_result`. Policy credential-key net cannot help here: that
+output is one free-form string, not a keyed field, so the declaration is the
+only thing keeping it out of the row.
+
 ## v1.8.11 — the policy gate and the operation it gated read different files
 
 Found against a real VCF 9.1 estate.
