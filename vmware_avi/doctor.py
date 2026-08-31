@@ -13,6 +13,7 @@ from pathlib import Path
 from rich.console import Console
 
 from vmware_avi.config import ENV_FILE, load_config, resolve_config_path
+from vmware_policy.fsperms import check_secret_file
 
 _log = logging.getLogger("vmware-avi.doctor")
 console = Console()
@@ -72,16 +73,13 @@ def run_doctor() -> bool:
     results.append(_check(".env file exists", env_exists, str(ENV_FILE)))
 
     if env_exists:
-        import stat
 
-        mode = ENV_FILE.stat().st_mode
-        secure = not (mode & (stat.S_IRWXG | stat.S_IRWXO))
+        # Three states, not two — see vmware_policy.fsperms. Windows has no
+        # POSIX mode bits and `chmod 600` there exits 0 without changing
+        # anything, so the old two-state check was permanently red.
+        check = check_secret_file(ENV_FILE)
         results.append(
-            _check(
-                ".env permissions are 600",
-                secure,
-                oct(stat.S_IMODE(mode)),
-            )
+            _check(".env permissions restrict it to you", not check.is_failure, check.message)
         )
 
     # 4. avisdk

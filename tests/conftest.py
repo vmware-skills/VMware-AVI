@@ -84,7 +84,7 @@ def config_yaml(tmp_path: Path) -> Path:
         "default_controller: lab\n"
         "ako:\n"
         "  namespace: avi-system\n"
-    )
+    , encoding="utf-8")
     return cfg
 
 

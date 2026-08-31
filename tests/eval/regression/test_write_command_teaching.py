@@ -43,6 +43,6 @@ def test_write_command_success_still_audits(tmp_path: Path) -> None:
         result = CliRunner().invoke(cli.app, ["vs", "enable", "web-vs"])
 
     assert result.exit_code == 0, result.output
-    entry = json.loads(audit_file.read_text().strip().splitlines()[0])
+    entry = json.loads(audit_file.read_text(encoding="utf-8").strip().splitlines()[0])
     assert entry["operation"] == "vs_enable"
     assert entry["resource"] == "web-vs"

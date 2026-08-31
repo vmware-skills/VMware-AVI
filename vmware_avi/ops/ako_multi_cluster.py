@@ -17,7 +17,7 @@ def list_clusters() -> None:
     result = subprocess.run(
         ["kubectl", "config", "get-contexts", "-o", "name"],
         capture_output=True,
-        text=True,
+        text=True, encoding="utf-8",
         timeout=30,
     )
     if result.returncode != 0:
@@ -58,7 +58,7 @@ def list_clusters() -> None:
                     "jsonpath={.items[0].status.phase}:{.items[0].spec.containers[0].image}",
                 ],
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8",
                 timeout=15,
             )
         except (subprocess.TimeoutExpired, OSError):
@@ -97,7 +97,7 @@ def show_amko_status() -> None:
                 "wide",
             ],
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8",
             timeout=30,
         )
         if result.returncode == 0 and result.stdout.strip():
@@ -112,7 +112,7 @@ def show_amko_status() -> None:
     gslb_check = subprocess.run(
         ["kubectl", "get", "gslbconfig", "-n", "avi-system", "-o", "yaml"],
         capture_output=True,
-        text=True,
+        text=True, encoding="utf-8",
         timeout=30,
     )
     if gslb_check.returncode == 0 and gslb_check.stdout.strip():

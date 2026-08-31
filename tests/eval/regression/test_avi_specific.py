@@ -68,7 +68,7 @@ class TestL7LatencyMetricId:
             str(p.relative_to(REPO_ROOT))
             for d in ("vmware_avi",)
             for p in (REPO_ROOT / d).rglob("*.py")
-            if "__pycache__" not in p.parts and "avg_resp_latency" in p.read_text()
+            if "__pycache__" not in p.parts and "avg_resp_latency" in p.read_text(encoding="utf-8")
         ]
         assert not offenders, (
             f"invented metric ID 'avg_resp_latency' still referenced in: {offenders}"
@@ -465,7 +465,7 @@ class TestAkoStatefulSetWording:
             for d in ("vmware_avi",)
             for p in (REPO_ROOT / d).rglob("*.py")
             if "__pycache__" not in p.parts
-            and "Deployment will recreate" in p.read_text()
+            and "Deployment will recreate" in p.read_text(encoding="utf-8")
         ]
         assert not offenders, (
             f"'Deployment will recreate' wording still present in: {offenders}"

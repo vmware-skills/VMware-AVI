@@ -463,7 +463,7 @@ class TestCliAuditWiring:
             result = CliRunner().invoke(cli.app, ["vs", "enable", "web-vs"])
 
         assert result.exit_code == 0, result.output
-        lines = audit_file.read_text().strip().splitlines()
+        lines = audit_file.read_text(encoding="utf-8").strip().splitlines()
         assert len(lines) == 1
         entry = json.loads(lines[0])
         assert entry["operation"] == "vs_enable"

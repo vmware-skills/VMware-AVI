@@ -87,7 +87,7 @@ class TestControllerUsername:
             "    host: 10.0.0.1\n"
             "    username: config-file-user\n"
             "default_controller: lab\n"
-        )
+        , encoding="utf-8")
         return cfg
 
     def test_username_and_password_rotate_together(self, tmp_path: Path) -> None:
@@ -133,7 +133,7 @@ class TestEnvPermissions:
 
     def test_warning_on_world_readable(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
         env_file = tmp_path / ".env"
-        env_file.write_text("SECRET=x")
+        env_file.write_text("SECRET=x", encoding="utf-8")
         env_file.chmod(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)  # 644
         with patch("vmware_avi.config.ENV_FILE", env_file):
             import logging

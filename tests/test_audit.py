@@ -21,7 +21,7 @@ class TestAuditLogOperation:
             log_operation("vs_disable", "web-vs", parameters={"enable": False})
 
         assert log_file.exists()
-        entry = json.loads(log_file.read_text().strip())
+        entry = json.loads(log_file.read_text(encoding="utf-8").strip())
         assert entry["operation"] == "vs_disable"
         assert entry["resource"] == "web-vs"
         assert entry["parameters"] == {"enable": False}
@@ -33,7 +33,7 @@ class TestAuditLogOperation:
             log_operation("vs_enable", "vs-1")
             log_operation("pool_disable", "pool-1", result="failure")
 
-        lines = log_file.read_text().strip().splitlines()
+        lines = log_file.read_text(encoding="utf-8").strip().splitlines()
         assert len(lines) == 2
         first = json.loads(lines[0])
         second = json.loads(lines[1])
@@ -45,7 +45,7 @@ class TestAuditLogOperation:
         with patch("vmware_avi.notify.audit.AUDIT_LOG", log_file):
             log_operation("test_op", "res")
 
-        entry = json.loads(log_file.read_text().strip())
+        entry = json.loads(log_file.read_text(encoding="utf-8").strip())
         assert "timestamp" in entry
         assert "T" in entry["timestamp"]  # ISO-8601 contains 'T'
 
@@ -54,7 +54,7 @@ class TestAuditLogOperation:
         with patch("vmware_avi.notify.audit.AUDIT_LOG", log_file):
             log_operation("delete", "vm-1", user="admin@corp")
 
-        entry = json.loads(log_file.read_text().strip())
+        entry = json.loads(log_file.read_text(encoding="utf-8").strip())
         assert entry["user"] == "admin@corp"
 
     def test_default_empty_parameters(self, tmp_path: Path) -> None:
@@ -62,7 +62,7 @@ class TestAuditLogOperation:
         with patch("vmware_avi.notify.audit.AUDIT_LOG", log_file):
             log_operation("status", "cluster")
 
-        entry = json.loads(log_file.read_text().strip())
+        entry = json.loads(log_file.read_text(encoding="utf-8").strip())
         assert entry["parameters"] == {}
 
     def test_handles_write_error_gracefully(self, tmp_path: Path) -> None:
@@ -71,7 +71,7 @@ class TestAuditLogOperation:
         # OSError (NotADirectoryError) that log_operation must swallow.
         # (Patching mkdir on a PosixPath instance is impossible — Path
         # instance attributes are read-only.)
-        (tmp_path / "no_dir").write_text("")
+        (tmp_path / "no_dir").write_text("", encoding="utf-8")
         bad_path = tmp_path / "no_dir" / "deep" / "audit.log"
         with patch("vmware_avi.notify.audit.AUDIT_LOG", bad_path):
             log_operation("fail_write", "x")  # should not raise

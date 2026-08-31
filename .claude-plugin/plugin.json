@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "vmware-avi",
   "displayName": "VMware AVI",
-  "version": "1.8.13",
+  "version": "1.8.14",
   "description": "VMware AVI (NSX ALB) load balancer plus AKO Kubernetes ops — 28 MCP tools.",
   "author": {
     "name": "Wei Zhou",

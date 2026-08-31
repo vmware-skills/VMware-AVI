@@ -25,7 +25,7 @@ DESTRUCTIVE_OPS = [
 
 def _function_calls_double_confirm(filepath: Path, func_name: str) -> bool:
     """Return True if *func_name* in *filepath* contains a call to double_confirm."""
-    source = filepath.read_text()
+    source = filepath.read_text(encoding="utf-8")
     tree = ast.parse(source, filename=str(filepath))
 
     for node in ast.walk(tree):
@@ -44,7 +44,7 @@ def _function_calls_double_confirm(filepath: Path, func_name: str) -> bool:
 
 def _function_imports_double_confirm(filepath: Path, func_name: str) -> bool:
     """Return True if *func_name* body contains 'from vmware_avi._safety import double_confirm'."""
-    source = filepath.read_text()
+    source = filepath.read_text(encoding="utf-8")
     tree = ast.parse(source, filename=str(filepath))
 
     for node in ast.walk(tree):

@@ -41,7 +41,7 @@ def _find_ako_release(namespace: str) -> str:
     result = subprocess.run(
         ["helm", "list", "-n", namespace, "-o", "json"],
         capture_output=True,
-        text=True,
+        text=True, encoding="utf-8",
         timeout=60,
     )
     if result.returncode != 0:
@@ -76,7 +76,7 @@ def show_ako_config(namespace: str = "avi-system") -> None:
     result = subprocess.run(
         ["helm", "get", "values", release, "-n", namespace, "-o", "yaml"],
         capture_output=True,
-        text=True,
+        text=True, encoding="utf-8",
         timeout=120,
     )
     if result.returncode != 0:
@@ -126,7 +126,7 @@ def diff_ako_config(namespace: str = "avi-system", chart_version: str = "") -> N
     result = subprocess.run(
         cmd,
         capture_output=True,
-        text=True,
+        text=True, encoding="utf-8",
         timeout=120,
     )
     if result.returncode != 0:
@@ -185,7 +185,7 @@ def upgrade_ako(
         cmd.append("--dry-run")
         console.print("[bold]Dry-run mode (preview only):[/bold]\n")
 
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", timeout=300)
     if result.returncode != 0:
         _print_helm_failure(
             f"[red]Helm upgrade failed for AKO release '{release}'. The release was not "

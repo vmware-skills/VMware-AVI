@@ -44,7 +44,7 @@ def test_init_writes_grep_safe_env(_wizard_env: Path, monkeypatch: pytest.Monkey
     )
     assert init_wizard.run_init(skip_test=True) == 0
 
-    env_text = (_wizard_env / ".env").read_text()
+    env_text = (_wizard_env / ".env").read_text(encoding="utf-8")
     assert "LAB_AVI_PASSWORD=b64:" in env_text  # no VMWARE_ prefix for AVI
     assert "S3cr3t!pw" not in env_text  # never plaintext on disk
     assert (_wizard_env / ".env").stat().st_mode & 0o777 == 0o600
@@ -80,7 +80,7 @@ def test_init_accepts_fqdn_host(_wizard_env: Path, monkeypatch: pytest.MonkeyPat
         confirms=[True],
     )
     assert init_wizard.run_init(skip_test=True) == 0
-    assert "host: controller.corp.local" in (_wizard_env / "config.yaml").read_text()
+    assert "host: controller.corp.local" in (_wizard_env / "config.yaml").read_text(encoding="utf-8")
 
 
 # ── doctor references a real init command (no false promise) ──────────────────
@@ -106,7 +106,7 @@ def _init_registered() -> bool:
 def test_doctor_init_reference_is_backed_by_real_command():
     from vmware_avi import doctor
 
-    src = Path(doctor.__file__).read_text()
+    src = Path(doctor.__file__).read_text(encoding="utf-8")
     if "vmware-avi init" in src:
         assert _init_registered(), "doctor recommends init but no such command is registered"
 
@@ -116,7 +116,7 @@ def test_doctor_does_not_recommend_nonexistent_command():
     must actually be registered."""
     from vmware_avi import doctor
 
-    src = Path(doctor.__file__).read_text()
+    src = Path(doctor.__file__).read_text(encoding="utf-8")
     registered = _command_names()
     for cmd in ("init", "doctor"):
         if f"vmware-avi {cmd}" in src:

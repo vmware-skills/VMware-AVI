@@ -112,7 +112,7 @@ class TestSkillMdParity:
         skill_md = (
             Path(__file__).resolve().parents[1]
             / "skills" / "vmware-avi" / "SKILL.md"
-        ).read_text()
+        ).read_text(encoding="utf-8")
         m = re.search(
             r"## MCP Tools \((\d+) — (\d+) read, (\d+) write\)", skill_md
         )
