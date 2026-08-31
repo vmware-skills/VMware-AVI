@@ -7,6 +7,8 @@ must lock .env to 0600, and the stored value must round-trip to the original.
 
 from __future__ import annotations
 
+from vmware_policy.fsperms import assert_owner_only
+
 from pathlib import Path
 
 import pytest
@@ -47,7 +49,7 @@ def test_init_writes_grep_safe_env(_wizard_env: Path, monkeypatch: pytest.Monkey
     env_text = (_wizard_env / ".env").read_text(encoding="utf-8")
     assert "LAB_AVI_PASSWORD=b64:" in env_text  # no VMWARE_ prefix for AVI
     assert "S3cr3t!pw" not in env_text  # never plaintext on disk
-    assert (_wizard_env / ".env").stat().st_mode & 0o777 == 0o600
+    assert_owner_only(_wizard_env / ".env")
     line = next(ln for ln in env_text.splitlines() if ln.startswith("LAB_AVI_PASSWORD="))
     assert _decode_secret(line.split("=", 1)[1]) == "S3cr3t!pw"
 

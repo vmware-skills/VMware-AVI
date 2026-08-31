@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
+from vmware_policy.fsperms import POSIX_PERMISSIONS
 from vmware_avi.config import (
     AppConfig,
     ControllerConfig,
@@ -139,4 +140,12 @@ class TestEnvPermissions:
             import logging
             with caplog.at_level(logging.WARNING, logger="vmware-avi.config"):
                 _check_env_permissions()
-        assert "Security warning" in caplog.text
+        if POSIX_PERMISSIONS:
+            assert "Security warning" in caplog.text
+        else:
+            # No mode bits to read, so there is nothing true to warn about, and
+            # the remedy this used to print (`chmod 600`) is inert here anyway.
+            # doctor is where the nuanced "unknown" verdict is reported; the hot
+            # path staying quiet is the fix, not a gap. Asserting a warning here
+            # would pin the contradiction the two halves used to print together.
+            assert "Security warning" not in caplog.text
