@@ -1,0 +1,20 @@
+{
+  "name": "@zw008/vmware-avi",
+  "version": "1.9.0",
+  "description": "VMware AVI (NSX ALB) load balancer plus AKO Kubernetes ops — 28 MCP tools.",
+  "private": true,
+  "license": "MIT",
+  "homepage": "https://github.com/vmware-skills/VMware-AVI",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vmware-skills/VMware-AVI.git"
+  },
+  "openclaw": {
+    "compat": {
+      "pluginApi": ">=2026.3.24-beta.2"
+    },
+    "build": {
+      "openclawVersion": "2026.3.24-beta.2"
+    }
+  }
+}
