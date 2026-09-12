@@ -12,6 +12,9 @@ from rich.console import Console
 from vmware_policy import guarded
 
 from vmware_avi._errors import cli_errors, teach_and_exit
+# Registers this skill's environment resolver, so environment-scoped policy
+# rules apply to @guarded CLI writes exactly as they do to MCP tools.
+import vmware_avi.policy_environment  # noqa: E402,F401
 
 
 def _harden_console_encoding() -> None:
@@ -191,34 +194,38 @@ def vs_status(name: str = typer.Argument(help="Virtual Service name")) -> None:
     show_vs_status(name)
 
 
-@vs_app.command("enable")
-@cli_errors
-@guarded(risk_level='high')
-def vs_enable(name: str = typer.Argument(help="Virtual Service name")) -> None:
-    """Enable a Virtual Service."""
+@guarded("vs_toggle", risk_level="high")
+def _vs_toggle(name: str, enable: bool) -> None:
+    """The one guarded write behind ``vs enable`` and ``vs disable``.
+
+    Both commands are the MCP tool ``vs_toggle``, and a guarded row records the
+    guarded function's own parameters. Guarding each command directly recorded
+    ``{"name": ...}`` for both, so the audit could not say whether a Virtual
+    Service was switched on or off. ``enable`` is a parameter here — as it is
+    on the MCP tool — so the direction is in every row.
+    """
     from vmware_avi.ops.vs_mgmt import toggle_vs
 
     _run_audited(
-        lambda: toggle_vs(name, enable=True),
-        operation="vs_enable",
+        lambda: toggle_vs(name, enable=enable),
+        operation="vs_enable" if enable else "vs_disable",
         resource=name,
-        parameters={"enable": True},
+        parameters={"enable": enable},
     )
+
+
+@vs_app.command("enable")
+@cli_errors
+def vs_enable(name: str = typer.Argument(help="Virtual Service name")) -> None:
+    """Enable a Virtual Service."""
+    _vs_toggle(name, enable=True)
 
 
 @vs_app.command("disable")
 @cli_errors
-@guarded(risk_level='high')
 def vs_disable(name: str = typer.Argument(help="Virtual Service name")) -> None:
     """Disable a Virtual Service (requires confirmation)."""
-    from vmware_avi.ops.vs_mgmt import toggle_vs
-
-    _run_audited(
-        lambda: toggle_vs(name, enable=False),
-        operation="vs_disable",
-        resource=name,
-        parameters={"enable": False},
-    )
+    _vs_toggle(name, enable=False)
 
 
 # --- Pool commands ---
@@ -235,7 +242,7 @@ def pool_members(pool: str = typer.Argument(help="Pool name")) -> None:
 
 @pool_app.command("enable")
 @cli_errors
-@guarded(risk_level='high')
+@guarded('pool_member_enable', risk_level='medium')
 def pool_enable(
     pool: str = typer.Argument(help="Pool name"),
     server: str = typer.Argument(help="Server IP"),
@@ -253,7 +260,7 @@ def pool_enable(
 
 @pool_app.command("disable")
 @cli_errors
-@guarded(risk_level='high')
+@guarded('pool_member_disable', risk_level='high')
 def pool_disable(
     pool: str = typer.Argument(help="Pool name"),
     server: str = typer.Argument(help="Server IP"),
@@ -410,7 +417,7 @@ def ako_config_diff_cmd(
 
 @ako_app.command("config-upgrade")
 @cli_errors
-@guarded(risk_level='medium')
+@guarded("ako_config_upgrade", risk_level="medium")
 def ako_config_upgrade_cmd(
     dry_run: bool = typer.Option(True, help="Preview only (default: true)"),
     chart_version: str = typer.Option(
@@ -484,7 +491,7 @@ def ako_sync_diff_cmd() -> None:
 
 @ako_app.command("sync-force")
 @cli_errors
-@guarded(risk_level='high')
+@guarded("ako_sync_force", risk_level="high")
 def ako_sync_force_cmd() -> None:
     """Force AKO resync (requires confirmation)."""
     from vmware_avi.ops.ako_sync import force_resync

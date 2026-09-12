@@ -16,7 +16,7 @@ installer:
 argument-hint: "[vs-name, ako command, or describe your task]"
 allowed-tools:
   - Bash
-metadata: {"openclaw":{"requires":{"env":["VMWARE_AVI_CONFIG"],"bins":["vmware-avi"],"config":["~/.vmware-avi/config.yaml","~/.vmware-avi/.env"]},"optional":{"env":["<CONTROLLER>_PASSWORD","<CONTROLLER>_USERNAME","KUBECONFIG","VMWARE_AUDIT_APPROVED_BY"],"bins":["vmware-policy","kubectl","helm"]},"primaryEnv":"VMWARE_AVI_CONFIG","homepage":"https://github.com/vmware-skills/VMware-AVI","emoji":"🔀","os":["macos","linux"]}}
+metadata: {"openclaw":{"requires":{"anyBins":["vmware-avi","uvx"]},"optional":{"env":["VMWARE_AVI_CONFIG","<CONTROLLER>_PASSWORD","<CONTROLLER>_USERNAME","KUBECONFIG","VMWARE_AUDIT_APPROVED_BY"],"bins":["vmware-policy","kubectl","helm"]},"homepage":"https://github.com/vmware-skills/VMware-AVI","emoji":"🔀","os":["macos","linux"]}}
 compatibility: >
   vmware-policy auto-installed as Python dependency (provides @vmware_tool decorator and audit logging). All write operations audited to ~/.vmware/audit.db.
   AVI Controller operations require avisdk and a per-controller password env var in ~/.vmware-avi/.env following the pattern <CONTROLLER_NAME_UPPER>_PASSWORD (e.g., controller "prod-avi" → PROD_AVI_PASSWORD).
@@ -53,7 +53,7 @@ AVI (NSX Advanced Load Balancer) application delivery and AKO Kubernetes operati
 ## Quick Install
 
 ```bash
-uv tool install vmware-avi
+uv tool install vmware-avi==1.9.0
 vmware-avi doctor            # checks Controller connectivity + kubeconfig + avisdk
 ```
 
@@ -235,7 +235,7 @@ Force resync triggers AKO to re-reconcile all K8s objects. If the drift persists
 ## Setup
 
 ```bash
-uv tool install vmware-avi
+uv tool install vmware-avi==1.9.0
 mkdir -p ~/.vmware-avi
 vmware-avi init              # generates config.yaml and .env templates
 chmod 600 ~/.vmware-avi/.env

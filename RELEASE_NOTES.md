@@ -1,3 +1,54 @@
+## v1.9.0 — CLI writes answer to the same rules as the MCP tools
+
+CLI commands are now authorised and audited under their MCP tool names, so one
+deny rule scopes both surfaces. `@guarded` had defaulted to the Python function
+name, so a rule denying `ako_sync_force` refused the agent and let
+`vmware-avi ako sync-force` do the same resync. Audit rows for these commands
+carry the new names from this release on:
+
+| CLI command | was | now |
+|---|---|---|
+| `vs enable` | `vs_enable` | `vs_toggle` |
+| `vs disable` | `vs_disable` | `vs_toggle` |
+| `pool enable` | `pool_enable` | `pool_member_enable` |
+| `pool disable` | `pool_disable` | `pool_member_disable` |
+| `ako config-upgrade` | `ako_config_upgrade_cmd` | `ako_config_upgrade` |
+| `ako sync-force` | `ako_sync_force_cmd` | `ako_sync_force` |
+
+`ako restart` already carried its MCP name. Both pool MCP tools run the same ops function, so
+their twins are named explicitly in the regression test rather than derived. `pool enable`'s risk
+level moves from high to medium, matching the MCP tool, so one rule sees one risk on both surfaces.
+
+Rows written before this release keep the old names, so a query over `~/.vmware/audit.db` that
+spans the upgrade needs both. **A deny rule written against an old CLI name no longer matches** —
+rename it to the MCP tool name in the table, or the command it was meant to stop runs unchecked.
+
+Now that `vs enable` and `vs disable` share the name `vs_toggle`, the name no longer says which
+way the Virtual Service went, so their rows carry `enable: true` / `enable: false` in the
+parameters, as the MCP tool's do. A test fails if the two rows ever read the same.
+
+**Environment-scoped deny rules now apply to CLI writes.** The skill's environment resolver was
+registered only when the MCP server was imported, which the CLI never does — so a
+`freeze-production-writes` rule stopped the MCP tool and not the CLI command doing the same
+thing. It now lives in `policy_environment.py`, imported by both surfaces. (With vmware-policy
+1.13.1 the CLI's `--config` file is the one whose labels are judged.)
+
+**OpenClaw could not show this skill to the model.** `metadata.openclaw.requires` listed
+config *file paths* under `requires.config`, which OpenClaw reads as `openclaw.json` keys that
+must be truthy — so the skill was "needs setup / not visible to the model" whatever was on disk
+(verified on OpenClaw 2026.6.35). `requires.env` named an optional override and `requires.bins`
+demanded a CLI that a plugin install (uvx) never has. `requires` is now `anyBins: [<cli>, "uvx"]`;
+the variables are still declared, under `optional.env`.
+
+**Install commands in the skill pin this release.** ClawHub reviews SKILL.md and references/,
+not the package they install, so an unpinned `uv tool install` vouched for code nobody reviewed.
+Every install command for this package in the skill now names this version.
+
+**A config path written as `~/…` now resolves.** Every MCP example config and setup-guide snippet
+sets `VMWARE_AVI_CONFIG` to `~/.vmware-avi/config.yaml`, but MCP clients pass env values verbatim and the
+path was used unexpanded, so copying the snippet gave "Config file not found" for a file that was
+there. `~` is now expanded in the variable and in `--config`.
+
 ## v1.8.15 — one answer per .env, on every platform
 
 `.env` permissions are decided by `vmware_policy.fsperms` instead of POSIX mode

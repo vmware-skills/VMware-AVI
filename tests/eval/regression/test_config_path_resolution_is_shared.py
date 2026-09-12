@@ -22,8 +22,8 @@ fix, on a machine with no config at the default path at all::
 That is the whole defect in two lines: `vmware-avi config` told the operator
 they had no configuration while the agent was already talking to a controller.
 
-``VMWARE_AVI_CONFIG`` is this skill's advertised ``primaryEnv`` in its OpenClaw
-metadata, so the CLI honouring it is the documented behaviour; ignoring it was
+``VMWARE_AVI_CONFIG`` is declared in this skill's OpenClaw
+metadata (``optional.env``), so the CLI honouring it is the documented behaviour; ignoring it was
 the bug.
 
 The precedence now lives in exactly one function, ``resolve_config_path``, that

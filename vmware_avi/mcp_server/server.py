@@ -5,24 +5,20 @@ Entry point: vmware-avi-mcp (defined in pyproject.toml).
 """
 
 import logging
-from pathlib import Path
 from io import StringIO
-from typing import Any, Optional
+from typing import Optional
 
 from mcp.server.fastmcp import FastMCP
 from vmware_policy import (
     describe_tool_parameters,
-    mtime_cached_loader,
     report_tool_failure,
     sanitize,
-    set_environment_resolver,
     vmware_tool,
-    skill_name,
 )
 
+from vmware_avi import __version__
 from vmware_avi.config import ConfigError
 from vmware_avi.connection import AviApiError
-from vmware_avi import __version__
 
 _log = logging.getLogger("vmware-avi-mcp")
 
@@ -955,47 +951,10 @@ def ako_amko_status() -> str:
 # Environment declaration
 # ═══════════════════════════════════════════════════════════════════════════════
 
-
-def _load_config(config_path: Optional[Path]) -> Any:
-    """Deferred-import shim for the mtime cache — this module keeps
-    vmware_avi imports inside functions, matching the gate section above."""
-    from vmware_avi.config import load_config
-
-    return load_config(config_path)
-
-
-_cached_config = mtime_cached_loader(
-    "VMWARE_AVI_CONFIG",
-    Path.home() / ".vmware-avi" / "config.yaml",  # mirrors vmware_avi.config.CONFIG_FILE
-    _load_config,
-)
-
-
-def _environment_for(target: Optional[str]) -> str:
-    """Report the environment a controller declares, for policy scoping.
-
-    Policy rules scope by environment ("irreversible work in production needs a
-    second person"), and vmware-policy cannot read this skill's config itself.
-    Registering this lookup is what lets those rules fire at all. Reloaded on
-    config.yaml mtime change so an edit takes effect without restarting the
-    server, and resolved through the same VMWARE_AVI_CONFIG override the
-    connection layer uses so both agree on which file is in force. The config
-    is cached via :func:`vmware_policy.mtime_cached_loader`, so repeated tool
-    calls pay one ``os.stat`` instead of a full YAML parse.
-    """
-    try:
-        return _cached_config().environment_for(target)
-    except Exception:  # noqa: BLE001 — an unreadable config means "undeclared"
-        return ""
-
-
-# Keyed by skill: the registry used to be one process-global slot, and a
-# bare `import` of any sibling's server module replaced whichever resolver
-# was there -- measured turning a freeze-production-writes rule from DENY
-# to ALLOW. Keyed, a resolver only ever answers for its own skill, so
-# registering at import time is safe again.
-set_environment_resolver(_environment_for, skill=skill_name(__name__))
-
+# The environment resolver lives in policy_environment so the CLI registers
+# it too (its @guarded writes go through the same guard()); importing it here
+# registers it for the MCP surface.
+from vmware_avi.policy_environment import _cached_config, _environment_for  # noqa: E402,F401
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Entry point
