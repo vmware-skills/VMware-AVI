@@ -9,7 +9,7 @@ import sys
 
 import typer
 from rich.console import Console
-from vmware_policy import guarded
+from vmware_policy import audited, cli_local, guarded
 
 from vmware_avi._errors import cli_errors, teach_and_exit
 # Registers this skill's environment resolver, so environment-scoped policy
@@ -99,6 +99,7 @@ app.add_typer(ako_app, name="ako")
 
 
 @app.command()
+@audited("doctor")
 def doctor() -> None:
     """Run environment diagnostics."""
     from vmware_avi.doctor import run_doctor
@@ -108,6 +109,7 @@ def doctor() -> None:
 
 
 @app.command("mcp")
+@cli_local("starts the MCP server; its tools audit themselves")
 def mcp_cmd() -> None:
     """Start the MCP server (stdio transport).
 
@@ -136,6 +138,7 @@ def mcp_cmd() -> None:
 
 
 @app.command()
+@audited("init")
 def init(
     force: bool = typer.Option(False, "--force", help="Overwrite an existing config."),
     skip_test: bool = typer.Option(
@@ -150,6 +153,7 @@ def init(
 
 
 @app.command("config")
+@cli_local("prints the local config file")
 def config_show() -> None:
     """Show current configuration (passwords masked)."""
     from vmware_avi.config import load_config
@@ -177,6 +181,7 @@ def config_show() -> None:
 
 @vs_app.command("list")
 @cli_errors
+@audited("vs_list")
 def vs_list(
     controller: str | None = typer.Option(None, help="Controller name"),
 ) -> None:
@@ -187,6 +192,7 @@ def vs_list(
 
 
 @vs_app.command("status")
+@audited("vs_status")
 def vs_status(name: str = typer.Argument(help="Virtual Service name")) -> None:
     """Show Virtual Service status details."""
     from vmware_avi.ops.vs_mgmt import show_vs_status
@@ -233,6 +239,7 @@ def vs_disable(name: str = typer.Argument(help="Virtual Service name")) -> None:
 
 @pool_app.command("members")
 @cli_errors
+@audited("pool_members")
 def pool_members(pool: str = typer.Argument(help="Pool name")) -> None:
     """List pool members and health status."""
     from vmware_avi.ops.pool_mgmt import list_pool_members
@@ -281,6 +288,7 @@ def pool_disable(
 
 @ssl_app.command("list")
 @cli_errors
+@audited("ssl_list")
 def ssl_list_cmd() -> None:
     """List all SSL certificates."""
     from vmware_avi.ops.ssl_mgmt import list_certificates
@@ -289,6 +297,7 @@ def ssl_list_cmd() -> None:
 
 
 @ssl_app.command("expiry")
+@audited("ssl_expiry_check")
 def ssl_expiry(
     days: int = typer.Option(30, help="Show certs expiring within N days"),
 ) -> None:
@@ -303,6 +312,7 @@ def ssl_expiry(
 
 @se_app.command("list")
 @cli_errors
+@audited("se_list")
 def se_list_cmd() -> None:
     """List all Service Engines."""
     from vmware_avi.ops.se_mgmt import list_service_engines
@@ -311,6 +321,7 @@ def se_list_cmd() -> None:
 
 
 @se_app.command("health")
+@audited("se_health")
 def se_health() -> None:
     """Check Service Engine health."""
     from vmware_avi.ops.se_mgmt import check_se_health
@@ -322,6 +333,7 @@ def se_health() -> None:
 
 
 @app.command("analytics")
+@audited("vs_analytics")
 def analytics_cmd(vs_name: str = typer.Argument(help="Virtual Service name")) -> None:
     """Show VS analytics (throughput, latency, errors)."""
     from vmware_avi.ops.analytics import show_analytics
@@ -330,6 +342,7 @@ def analytics_cmd(vs_name: str = typer.Argument(help="Virtual Service name")) ->
 
 
 @app.command("logs")
+@audited("vs_error_logs")
 def logs_cmd(
     vs_name: str = typer.Argument(help="Virtual Service name"),
     since: str = typer.Option("1h", help="Time range (e.g., 1h, 30m)"),
@@ -344,6 +357,7 @@ def logs_cmd(
 
 
 @ako_app.command("status")
+@audited("ako_status")
 def ako_status(
     context: str | None = typer.Option(None, help="K8s context"),
 ) -> None:
@@ -354,6 +368,7 @@ def ako_status(
 
 
 @ako_app.command("logs")
+@audited("ako_logs")
 def ako_logs(
     tail: int = typer.Option(100, help="Number of lines"),
     since: str = typer.Option("", help="Time range (e.g., 30m, 1h)"),
@@ -383,6 +398,7 @@ def ako_restart(
 
 
 @ako_app.command("version")
+@audited("ako_version")
 def ako_version(
     context: str | None = typer.Option(None, help="K8s context"),
 ) -> None:
@@ -396,6 +412,7 @@ def ako_version(
 
 
 @ako_app.command("config-show")
+@audited("ako_config_show")
 def ako_config_show_cmd() -> None:
     """Show current AKO values.yaml."""
     from vmware_avi.ops.ako_config import show_ako_config
@@ -404,6 +421,7 @@ def ako_config_show_cmd() -> None:
 
 
 @ako_app.command("config-diff")
+@audited("ako_config_diff")
 def ako_config_diff_cmd(
     chart_version: str = typer.Option(
         "", help="Pin the chart version to compare against (default: registry latest)"
@@ -442,6 +460,7 @@ def ako_config_upgrade_cmd(
 
 
 @ako_app.command("ingress-check")
+@audited("ako_ingress_check")
 def ako_ingress_check_cmd(
     namespace: str = typer.Argument(help="Namespace to check"),
 ) -> None:
@@ -452,6 +471,7 @@ def ako_ingress_check_cmd(
 
 
 @ako_app.command("ingress-map")
+@audited("ako_ingress_map")
 def ako_ingress_map_cmd() -> None:
     """Show Ingress to VS mapping."""
     from vmware_avi.ops.ako_ingress import show_ingress_map
@@ -460,6 +480,7 @@ def ako_ingress_map_cmd() -> None:
 
 
 @ako_app.command("ingress-diagnose")
+@audited("ako_ingress_diagnose")
 def ako_ingress_diagnose_cmd(
     name: str = typer.Argument(help="Ingress name"),
     namespace: str = typer.Option("default", help="Namespace"),
@@ -474,6 +495,7 @@ def ako_ingress_diagnose_cmd(
 
 
 @ako_app.command("sync-status")
+@audited("ako_sync_status")
 def ako_sync_status_cmd() -> None:
     """Check K8s-Controller sync status."""
     from vmware_avi.ops.ako_sync import check_sync_status
@@ -482,6 +504,7 @@ def ako_sync_status_cmd() -> None:
 
 
 @ako_app.command("sync-diff")
+@audited("ako_sync_diff")
 def ako_sync_diff_cmd() -> None:
     """Show K8s-Controller inconsistencies."""
     from vmware_avi.ops.ako_sync import show_sync_diff
@@ -508,6 +531,7 @@ def ako_sync_force_cmd() -> None:
 
 
 @ako_app.command("clusters")
+@audited("ako_clusters")
 def ako_clusters_cmd() -> None:
     """List all clusters with AKO deployed."""
     from vmware_avi.ops.ako_multi_cluster import list_clusters
@@ -516,6 +540,7 @@ def ako_clusters_cmd() -> None:
 
 
 @ako_app.command("amko-status")
+@audited("ako_amko_status")
 def ako_amko_status_cmd() -> None:
     """Show AMKO (multi-cluster GSLB) status."""
     from vmware_avi.ops.ako_multi_cluster import show_amko_status
