@@ -37,7 +37,7 @@ All 28 MCP tools exposed by `vmware-avi mcp` (v1.5.15+; legacy entry point: `vmw
 | `vmware-avi mcp` (CLI subcommand, stdio) | ✅ Full | ✅ v1.5.15+ default — no PyPI re-resolve, works behind corporate TLS proxies. |
 | `vmware-avi-mcp` (legacy console script, stdio) | ✅ Full | Kept for backward compatibility with pre-1.5.15 configs. |
 | `python -m vmware_avi.mcp_server` (stdio, via `__main__.py`) | ✅ Full | Docker image `CMD` only — not for end-user CLI install, and no longer used by `smithery.yaml` (which now calls the `vmware-avi mcp` entry point). Added v1.5.22. |
-| `uvx --from vmware-avi==1.9.1 vmware-avi-mcp` | ⚠ Fallback | Re-resolves PyPI on each launch; fails behind corporate TLS proxies (踩坑 #25). Use `UV_NATIVE_TLS=true` workaround. |
+| `uvx --from vmware-avi==1.10.0 vmware-avi-mcp` | ⚠ Fallback | Re-resolves PyPI on each launch; fails behind corporate TLS proxies (踩坑 #25). Use `UV_NATIVE_TLS=true` workaround. |
 
 ## Automation Level Reference
 
@@ -47,7 +47,7 @@ Each operation is classified by autonomy level per the Enterprise Harness Engine
 |:-:|---|---|---|
 | **L1** | Read-only, raw data | Always auto-run | `vs_list`, `vs_status`, `pool_list`, `pool_members`, `se_list`, `se_health`, `vs_analytics` queries, AKO/AMKO inventory (`ako_status`, `ako_clusters`, `ako_amko_status`) |
 | **L2** | Read + analysis / recommendation | Always auto-run | traffic distribution analysis, health score correlation, pool member ratio summaries, analytics-driven anomaly detection |
-| **L3** | Single write — user must approve | Only after explicit confirmation; destructive ops require double-confirm + `--dry-run` | `vs_toggle` (disable), `pool_member_enable`/`pool_member_disable`, `ako_restart`, `ako_config_upgrade`, `ako_sync_force` |
+| **L3** | Single write — user must approve | Only after explicit confirmation. MCP: `vs_toggle`, `pool_member_disable`, `ako_restart`, `ako_config_upgrade`, `ako_sync_force` return a `blast_radius` preview unless `confirm=true`; CLI: double-confirm + `--dry-run` | `vs_toggle`, `pool_member_enable`/`pool_member_disable`, `ako_restart`, `ako_config_upgrade`, `ako_sync_force` |
 | **L4** | Multi-step plan / apply workflow | Plan generation auto; apply gated by user approval | *(roadmap — VS deployment plans, blue/green pool member rotations)* |
 | **L5** | Auto-remediation from learned pattern | Pattern library only; requires `risk:low` + `reversible:true` + `repeatable:true` | *(roadmap — candidates: stale pool member drain, AKO controller reconnect)* |
 
@@ -56,7 +56,7 @@ Each operation is classified by autonomy level per the Enterprise Harness Engine
 
 **Notes**:
 - L1/L2 tools are always safe for agents to call without confirmation.
-- L3 tools always pass through the `@vmware_tool` decorator: connection check → policy check → audit log → double-confirm.
+- L3 tools always pass through the `@vmware_tool` decorator: connection check → policy check → audit log. The five gated tools then measure their blast radius; without `confirm=true` they stop there, and with it they refuse on a blocker or an unreadable field.
 - AKO Kubernetes operations affect ingress/service routing — even "low-risk" restarts can briefly interrupt traffic; treat as L3 with explicit user approval.
 
 ## Traditional Mode — AVI Controller (13 tools)
@@ -67,7 +67,7 @@ Each operation is classified by autonomy level per the Enterprise Harness Engine
 |------|-------------|------------|:----:|:-------:|
 | `vs_list` | List all Virtual Services on the active controller | `controller` (string, optional) | Low | No |
 | `vs_status` | Show detailed status of a single VS (VIP, health score, pool binding, enabled state) | `name` (string, **required**) | Low | No |
-| `vs_toggle` | Enable or disable a Virtual Service | `name` (string, **required**), `enable` (boolean, **required**) | Medium | Yes (disable) |
+| `vs_toggle` | Enable or disable a Virtual Service. Returns `blast_radius` (VS, uuid, current state, VIPs, pools and member counts); previews unless `confirm=true` | `name` (string, **required**), `enable` (boolean, **required**), `confirm` (boolean, default `false`), `confirmed` (deprecated alias) | Medium | Yes (both directions) |
 
 ### Pool Member (4)
 
@@ -76,7 +76,7 @@ Each operation is classified by autonomy level per the Enterprise Harness Engine
 | `pool_list` | Discover pools on the Controller, with VS bindings (uses `/virtualservice-inventory` to include K8S-managed pool groups) | `vs_filter` (string, optional) | Low | No |
 | `pool_members` | List all members of a pool with health status and ratio | `pool` (string, **required**) | Low | No |
 | `pool_member_enable` | Enable a pool member (restore traffic after maintenance) | `pool` (string, **required**), `server` (string, **required**) | Low | No |
-| `pool_member_disable` | Disable a pool member with graceful connection drain | `pool` (string, **required**), `server` (string, **required**) | Medium | Yes |
+| `pool_member_disable` | Disable a pool member with graceful connection drain. Returns `blast_radius` (pool, member, enabled members before/after); refuses the pool's only enabled member | `pool` (string, **required**), `server` (string, **required**), `confirm` (boolean, default `false`), `confirmed` (deprecated alias) | Medium | Yes |
 
 ### SSL Certificate (2)
 
@@ -107,7 +107,7 @@ Each operation is classified by autonomy level per the Enterprise Harness Engine
 |------|-------------|------------|:----:|:-------:|
 | `ako_status` | Check AKO pod status (phase, restart count, readiness) | `context` (string, optional) | Low | No |
 | `ako_logs` | View AKO pod logs (tail mode) | `tail` (integer, default: 100), `since` (string, optional) | Low | No |
-| `ako_restart` | Restart AKO pod by deleting it (its StatefulSet recreates it) | `context` (string, optional) | High | Yes |
+| `ako_restart` | Restart AKO pod by deleting it (its StatefulSet recreates it). Returns `blast_radius` (pod, uid, phase, Ingresses); the delete is pinned to the measured uid | `context` (string, optional), `confirm` (boolean, default `false`), `confirmed` (deprecated alias) | High | Yes |
 | `ako_version` | Show AKO container image tag and Helm chart version | `context` (string, optional) | Low | No |
 
 ### AKO Config (3)
@@ -116,7 +116,7 @@ Each operation is classified by autonomy level per the Enterprise Harness Engine
 |------|-------------|------------|:----:|:-------:|
 | `ako_config_show` | Show current AKO Helm values (values.yaml snapshot; release auto-discovered via `helm list` — official installs use `--generate-name`) | *(none)* | Low | No |
 | `ako_config_diff` | Preview the pending Helm change, running the same command `ako_config_upgrade` does (`--reuse-values` included) so the diff describes the actual upgrade rather than the chart's defaults. Chart: `oci://projects.packages.broadcom.com/ako/helm-charts/ako` | `chart_version` (optional — empty resolves to registry latest, which can move between calls) | Low | No |
-| `ako_config_upgrade` | Helm upgrade the discovered AKO release from the official Broadcom OCI chart with `--reuse-values` (defaults to dry-run) | `dry_run` (boolean, default: `true`) | High | Yes |
+| `ako_config_upgrade` | Helm upgrade the discovered AKO release from the official Broadcom OCI chart with `--reuse-values`. Without `confirm=true` returns `blast_radius` (release, chart now → chart to, status) plus the `helm upgrade --dry-run` output | `confirm` (boolean, default `false`), `chart_version` (optional), `dry_run` / `confirmed` (deprecated aliases) | High | Yes |
 
 ### Ingress Diagnostics (3)
 
@@ -132,7 +132,7 @@ Each operation is classified by autonomy level per the Enterprise Harness Engine
 |------|-------------|------------|:----:|:-------:|
 | `ako_sync_status` | Check overall K8s-to-Controller sync health | *(none)* | Low | No |
 | `ako_sync_diff` | Show objects present in K8s but missing on Controller, and vice versa | *(none)* | Low | No |
-| `ako_sync_force` | Force AKO to re-reconcile all K8s objects against the Controller | *(none)* | Medium | Yes |
+| `ako_sync_force` | Force AKO to re-reconcile all K8s objects against the Controller (deletes the AKO pod). Returns `blast_radius` like `ako_restart` | `context` (string, optional), `confirm` (boolean, default `false`), `confirmed` (deprecated alias) | Medium | Yes |
 
 ### Multi-cluster (2)
 
@@ -165,8 +165,8 @@ three rows sum to the full tool surface:
 > Note: risk is contextual for two tools, but each is listed only once above, at its
 > higher level. `vs_toggle` with `enable=true` is effectively Low risk; with
 > `enable=false` it is Medium (and High against a critical VS), so it is counted as
-> Medium. `ako_config_upgrade` with `dry_run=true` is Low risk (preview only); with
-> `dry_run=false` it is High, so it is counted as High.
+> Medium. `ako_config_upgrade` without `confirm=true` is Low risk (preview only); with
+> `confirm=true` it is High, so it is counted as High.
 
 ## Audit Coverage
 

@@ -37,10 +37,11 @@ This skill operates in two modes with separate authentication:
 All write operations pass through multiple safety layers:
 
 1. **`@vmware_tool` decorator** — mandatory on every MCP tool; provides pre-checks, audit logging, data sanitization, and timeout control
-2. **Double confirmation** — CLI destructive commands (`vs_toggle` disable, `pool_member_disable`, `ako_restart`, `ako_config_upgrade`, `ako_sync_force`) require two separate "Are you sure?" prompts
-3. **`--dry-run` default** — `ako_config_upgrade` defaults to `--dry-run` mode; the caller must explicitly opt out to execute
-4. **Audit logging** — every operation (read and write) is logged to `~/.vmware/audit.db` (SQLite WAL) with timestamp, user, target, operation, parameters, and result
-5. **Policy engine** — `~/.vmware/rules.yaml` can deny operations by pattern, enforce maintenance windows, and set risk-level thresholds
+2. **Double confirmation** — CLI destructive commands (`vs disable`, `pool disable`, `ako restart`, `ako config upgrade`, `ako sync force`) require two separate "Are you sure?" prompts
+3. **`--dry-run` default** — the CLI `ako config upgrade` defaults to `--dry-run` mode; the caller must explicitly opt out to execute
+4. **MCP blast-radius gate** — the matching MCP tools (`vs_toggle`, `pool_member_disable`, `ako_restart`, `ako_sync_force`, `ako_config_upgrade`) take `confirm` (default `false`). A call without `confirm=true` returns the measured `blast_radius` and changes nothing; `confirm=true` is refused when a blocker is found (the pool's only enabled member, a terminating AKO pod, a failing `helm upgrade --dry-run`, a release mid-operation) or anything the measurement depends on could not be read. The AKO pod delete is pinned to the measured pod's uid
+5. **Audit logging** — every operation (read and write) is logged to `~/.vmware/audit.db` (SQLite WAL) with timestamp, user, target, operation, parameters, and result
+6. **Policy engine** — `~/.vmware/rules.yaml` can deny operations by pattern, enforce maintenance windows, and set risk-level thresholds
 
 ### SSL/TLS Verification
 

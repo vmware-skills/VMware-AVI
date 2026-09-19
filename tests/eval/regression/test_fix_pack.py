@@ -313,32 +313,51 @@ class TestWriteFailureReported:
 
 @pytest.mark.unit
 class TestMcpUpgradeGate:
-    def test_not_confirmed_returns_preview_without_running(self) -> None:
+    """The MCP upgrade never prompts on stdio, and never upgrades on a bare call.
+
+    Updated 2026-09-19 for HLD §7: ``confirm`` replaced ``confirmed``/``dry_run``
+    (kept as deprecated aliases), and the preview is measured — it runs
+    ``helm list`` and ``helm upgrade --dry-run`` — so the measurement is stubbed
+    here. The full contract is in tests/test_ako_write_gate.py.
+    """
+
+    @staticmethod
+    def _measured(monkeypatch) -> None:
+        from vmware_avi.ops import ako_gate
+
+        radius = {"release": "ako-1", "blockers": [], "unmeasured": []}
+        monkeypatch.setattr(ako_gate, "measure_upgrade", lambda _v: (radius, "dry-run output"))
+
+    def test_not_confirmed_returns_preview_without_running(self, monkeypatch) -> None:
         from vmware_avi.mcp_server import server
 
+        self._measured(monkeypatch)
         with patch("vmware_avi.ops.ako_config.upgrade_ako") as mock_upgrade:
             out = server.ako_config_upgrade(dry_run=False, confirmed=False)
 
         mock_upgrade.assert_not_called()
-        assert "[preview]" in out
-        assert "confirmed=True" in out
+        assert out["action"] == "preview"
+        assert "confirm=True" in out["hint"]
 
-    def test_confirmed_runs_with_skip_prompt(self) -> None:
+    def test_confirmed_runs_with_skip_prompt(self, monkeypatch) -> None:
         from vmware_avi.mcp_server import server
 
+        self._measured(monkeypatch)
         with patch("vmware_avi.ops.ako_config.upgrade_ako") as mock_upgrade:
-            server.ako_config_upgrade(dry_run=False, confirmed=True)
+            server.ako_config_upgrade(confirm=True)
 
         mock_upgrade.assert_called_once()
         assert mock_upgrade.call_args.kwargs.get("skip_prompt") is True
 
-    def test_dry_run_needs_no_confirmation(self) -> None:
+    def test_dry_run_true_never_runs_the_executor(self, monkeypatch) -> None:
         from vmware_avi.mcp_server import server
 
+        self._measured(monkeypatch)
         with patch("vmware_avi.ops.ako_config.upgrade_ako") as mock_upgrade:
-            server.ako_config_upgrade(dry_run=True, confirmed=False)
+            out = server.ako_config_upgrade(dry_run=True, confirmed=False)
 
-        mock_upgrade.assert_called_once()
+        mock_upgrade.assert_not_called()
+        assert out["helm_dry_run"] == "dry-run output"
 
     def test_upgrade_ako_skip_prompt_bypasses_double_confirm(self) -> None:
         ok = SimpleNamespace(returncode=0, stdout="upgraded", stderr="")

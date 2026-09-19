@@ -486,6 +486,7 @@ Force resync triggers AKO to re-reconcile all K8s objects. If the drift persists
 |---------|---------|
 | **Double Confirmation** | Destructive ops (VS disable, pool member disable, AKO restart, Helm upgrade, force resync) require 2 sequential confirmations |
 | **Dry-Run Default** | `ako config upgrade` defaults to `--dry-run` mode -- user must explicitly confirm to apply |
+| **MCP Blast Radius** | `vs_toggle`, `pool_member_disable`, `ako_restart`, `ako_sync_force` and `ako_config_upgrade` take `confirm` (default `false`): a call without `confirm=true` returns `blast_radius` (what would change: VS/pool and member counts, the AKO pod and its Ingresses, the Helm release and chart move) and changes nothing. `confirm=true` is refused on a blocker (the pool's only enabled member, a terminating AKO pod, a failing `helm --dry-run`) or an unreadable field. `confirmed` / `dry_run` are deprecated aliases |
 | **Audit Trail** | All operations logged to `~/.vmware/audit.db` via vmware-policy (`@vmware_tool` decorator) |
 | **Password Protection** | `.env` file loading with permission check; never in shell history |
 | **SSL Support** | `verify_ssl: false` for self-signed certs in isolated lab environments only |

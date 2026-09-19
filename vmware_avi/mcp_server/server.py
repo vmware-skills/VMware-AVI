@@ -153,6 +153,26 @@ def _capture_output(func, *args, **kwargs) -> str:
     return buf.getvalue()
 
 
+def _gated(tool: str, deprecated: Optional[str], run) -> dict:
+    """Run one gated write (HLD §7) and shape every outcome as a dict.
+
+    A refusal (``GateRefusedError``) keeps its teaching text and the blast
+    radius it measured; any other failure goes through ``_safe_error``. Both
+    come back as ``{"error": ...}``, which ``@vmware_tool`` audits as a
+    failure. ``deprecated`` is attached whenever a legacy alias was passed.
+    """
+    from vmware_avi.ops.write_gate import GateRefusedError
+
+    try:
+        out = run()
+    except GateRefusedError as exc:
+        _log.info("Tool %s refused: %s", tool, exc)
+        out = {"error": sanitize(str(exc), 1000), "blast_radius": exc.blast_radius}
+    except Exception as exc:  # noqa: BLE001 — reduced to a safe string by _safe_error
+        out = {"error": _safe_error(exc, tool), "hint": _DOCTOR_HINT}
+    return {**out, "deprecated": deprecated} if deprecated else out
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Traditional mode — AVI Controller
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -218,44 +238,55 @@ def vs_status(name: str) -> str:
 @vmware_tool(
     risk_level="high",
     undo=lambda params, result: (
-        None
-        if isinstance(result, str) and result.startswith("[preview]")
-        else {
+        {
             "tool": "vs_toggle",
             "params": {
                 "name": params.get("name"),
                 "enable": not params.get("enable"),
-                "confirmed": True,
+                "confirm": True,
             },
             "skill": "avi",
             "note": "Inverse of vs_toggle: toggle the Virtual Service back to its prior state.",
         }
+        if isinstance(result, dict) and result.get("action") in ("enabled", "disabled")
+        else None
     ),
 )
-def vs_toggle(name: str, enable: bool, confirmed: bool = False) -> str:
+def vs_toggle(
+    name: str,
+    enable: bool,
+    confirm: bool = False,
+    confirmed: Optional[bool] = None,
+) -> dict:
     """[WRITE] Enable or disable a Virtual Service. Disabling stops all traffic to it.
 
-    Returns a one-line result. Use vs_status first to check current state.
+    Without confirm=True this only previews: it returns blast_radius (the VS
+    name and uuid, whether it is enabled now, its VIPs and oper status, and the
+    pools and member counts behind it) and changes nothing. Show that to the
+    user and get their explicit decision. Do not set confirm=True on your own
+    because the user asked earlier: they have not seen what it changes yet.
+    A VS already in the requested state returns action "noop".
 
-    SAFETY: disabling requires confirmed=True; without it you get a preview
-    only. Enabling is always safe.
+    Refused with confirm=True: a VS whose uuid or pools cannot be read (the
+    change would be blind). Use vs_status first to check current state.
 
     Args:
         name: Exact Virtual Service name.
         enable: true to enable, false to disable.
-        confirmed: Gates the disable only. With enable=false, the default false
-            returns a preview naming the VS that would stop serving traffic and
-            changes nothing; true performs the disable. Ignored when enable=true
-            — enabling always executes.
+        confirm: False (default) returns the blast radius and changes nothing.
+            True applies it.
+        confirmed: Deprecated alias for confirm; removed in the next minor
+            release. confirmed=False holds even when confirm=True.
     """
+    from vmware_avi.ops import lb_gate
     from vmware_avi.ops.vs_mgmt import toggle_vs
+    from vmware_avi.ops.write_gate import resolve_confirm
 
-    if not enable and not confirmed:
-        return (
-            f"[preview] Would disable Virtual Service '{name}', stopping all traffic to this VS. "
-            "Re-invoke with confirmed=True to execute."
-        )
-    return _capture_output(toggle_vs, name, enable=enable, skip_prompt=True)
+    decision = resolve_confirm(confirm, confirmed=confirmed)
+    return _gated("vs_toggle", decision.deprecated, lambda: lb_gate.vs_toggle(
+        name, enable, act=decision.act,
+        apply=lambda: _capture_output(toggle_vs, name, enable=enable, skip_prompt=True),
+    ))
 
 
 @mcp.tool(
@@ -345,14 +376,27 @@ def pool_member_enable(pool: str, server: str) -> str:
     }
 )
 @vmware_tool(risk_level="high")
-def pool_member_disable(pool: str, server: str, confirmed: bool = False) -> str:
+def pool_member_disable(
+    pool: str,
+    server: str,
+    confirm: bool = False,
+    confirmed: Optional[bool] = None,
+) -> dict:
     """[WRITE] Disable a pool member with graceful drain — existing connections
     complete, no new traffic.
 
-    Returns a one-line result. Use for maintenance or rolling deployments; run
-    pool_members first for the server IP, pool_member_enable to reverse it.
+    Without confirm=True this only previews: it returns blast_radius (pool name
+    and uuid, the member's IP/port/state, and how many members are enabled
+    before and after) and changes nothing. Show that to the user and get their
+    explicit decision. Do not set confirm=True on your own because the user
+    asked earlier: they have not seen what it changes yet. An already disabled
+    member returns action "noop".
 
-    SAFETY: requires confirmed=True; without it you get a preview only.
+    Refused with confirm=True: the pool's only enabled member (the pool would
+    serve nothing — enable another first, or use vs_toggle on purpose), an IP
+    that matches more than one member, and a pool whose members cannot be read.
+    Use for maintenance or rolling deployments; run pool_members first for the
+    server IP, pool_member_enable to reverse it.
 
     Args:
         pool: Exact pool name as shown by pool_list — matched literally, not
@@ -360,20 +404,22 @@ def pool_member_disable(pool: str, server: str, confirmed: bool = False) -> str:
             are often named differently from the Virtual Services that use
             them, so do not infer it from a VS name.
         server: Server IP address.
-        confirmed: false (the default) returns a preview naming the member and
-            pool, and changes nothing; true disables the member, draining it so
-            existing connections finish while new traffic stops. Reverse it with
-            pool_member_enable.
+        confirm: False (default) returns the blast radius and changes nothing.
+            True applies it.
+        confirmed: Deprecated alias for confirm; removed in the next minor
+            release. confirmed=False holds even when confirm=True.
     """
-    if not confirmed:
-        return (
-            f"[preview] Would disable pool member {server} in pool '{pool}' "
-            "(graceful drain — existing connections complete, no new traffic). "
-            "Re-invoke with confirmed=True to execute."
-        )
+    from vmware_avi.ops import lb_gate
     from vmware_avi.ops.pool_mgmt import toggle_pool_member
+    from vmware_avi.ops.write_gate import resolve_confirm
 
-    return _capture_output(toggle_pool_member, pool, server, enable=False, skip_prompt=True)
+    decision = resolve_confirm(confirm, confirmed=confirmed)
+    return _gated("pool_member_disable", decision.deprecated, lambda: lb_gate.pool_member_disable(
+        pool, server, act=decision.act,
+        apply=lambda: _capture_output(
+            toggle_pool_member, pool, server, enable=False, skip_prompt=True
+        ),
+    ))
 
 
 @mcp.tool(
@@ -580,33 +626,43 @@ def ako_logs(tail: int = 100, since: Optional[str] = None, context: Optional[str
     }
 )
 @vmware_tool(risk_level="high")
-def ako_restart(context: Optional[str] = None, confirmed: bool = False) -> str:
+def ako_restart(
+    context: Optional[str] = None,
+    confirm: bool = False,
+    confirmed: Optional[bool] = None,
+) -> dict:
     """[WRITE] Restart the AKO pod by deleting it — its StatefulSet recreates it.
 
-    Returns a one-line result. Use when AKO is stuck or after config changes;
+    Without confirm=True this only previews: it returns blast_radius (context,
+    namespace, the pod's name, uid, phase and restarts, and the Ingresses whose
+    programming pauses until the new pod is Running) and changes nothing. Show
+    that to the user and get their explicit decision. Do not set confirm=True
+    on your own because the user asked earlier: they have not seen what it
+    changes yet. The pod deleted is the one measured (uid precondition).
+
+    Refused with confirm=True: a pod already terminating, and a pod or Ingress
+    list that cannot be read. Use when AKO is stuck or after config changes;
     brief traffic disruption is possible. Run ako_status afterwards, and
     ako_logs if the pod is not Running.
 
-    SAFETY: requires confirmed=True; without it you get a preview only.
-
     Args:
         context: K8s context name (optional).
-        confirmed: false (the default) returns a preview and changes nothing;
-            true deletes the AKO pod. The StatefulSet recreates it, so this is a
-            restart rather than a removal, but ingress programming pauses until
-            the new pod is Running and brief traffic disruption is possible.
+        confirm: False (default) returns the blast radius and changes nothing.
+            True applies it.
+        confirmed: Deprecated alias for confirm; removed in the next minor
+            release. confirmed=False holds even when confirm=True.
     """
-    if not confirmed:
-        ctx_hint = f" in context '{context}'" if context else ""
-        return (
-            f"[preview] Would delete the AKO pod{ctx_hint} — "
-            "its StatefulSet will recreate it automatically. "
-            "Brief traffic disruption is possible during restart. "
-            "Re-invoke with confirmed=True to execute."
-        )
+    from vmware_avi.ops import ako_gate
     from vmware_avi.ops.ako_pod import restart_ako
+    from vmware_avi.ops.write_gate import resolve_confirm
 
-    return _capture_output(restart_ako, context, skip_prompt=True)
+    decision = resolve_confirm(confirm, confirmed=confirmed)
+    effect = ("Deletes the AKO pod; its StatefulSet recreates it. Ingress programming pauses "
+              "until the new pod is Running; brief traffic disruption is possible.")
+    return _gated("ako_restart", decision.deprecated, lambda: ako_gate.delete_ako_pod(
+        "ako_restart", context, effect, act=decision.act,
+        apply=lambda uid: _capture_output(restart_ako, context, skip_prompt=True, uid=uid),
+    ))
 
 
 @mcp.tool(
@@ -699,38 +755,50 @@ def ako_config_diff(chart_version: str = "") -> str:
 # Same helm output as ako_config_diff — see the note there.
 @vmware_tool(risk_level="medium", sensitive_result=True)
 def ako_config_upgrade(
-    dry_run: bool = True, confirmed: bool = False, chart_version: str = ""
-) -> str:
-    """[WRITE] Apply an AKO Helm upgrade (dry_run=true by default).
+    confirm: bool = False,
+    chart_version: str = "",
+    dry_run: Optional[bool] = None,
+    confirmed: Optional[bool] = None,
+) -> dict:
+    """[WRITE] Apply an AKO Helm upgrade to the avi-system release.
 
-    Returns helm's output, with credential values blanked to `<redacted>` by this
-    skill. Run ako_config_diff first to review the change. Finds
-    the avi-system release automatically and upgrades the Broadcom OCI chart
-    with --reuse-values.
+    Finds the avi-system release automatically and upgrades the Broadcom OCI
+    chart with --reuse-values. Without confirm=True this only previews: it
+    returns blast_radius (release, the chart and app version it is on, revision
+    and status, the chart it would move to) plus helm_dry_run, the output of
+    `helm upgrade --dry-run`, and changes nothing. Show that to the user and get
+    their explicit decision. Do not set confirm=True on your own because the
+    user asked earlier: they have not seen what it changes yet.
 
-    SAFETY: applying (dry_run=False) requires confirmed=True, else preview only.
+    Refused with confirm=True: a failing dry-run (the real upgrade would fail
+    too), a release with another helm operation pending, and a release whose
+    status cannot be read. Helm output has credential values blanked to
+    `<redacted>` by this skill. Run ako_config_diff first to review the change.
 
     Args:
-        dry_run: Preview without applying (default true).
-        confirmed: Gates the real upgrade only. With dry_run=false, the default
-            false returns a preview naming the chart version and changes nothing;
-            true runs `helm upgrade --reuse-values` against the avi-system
-            release, rolling the AKO pod. Ignored while dry_run=true, which never
-            writes.
-        chart_version: Pin the chart, e.g. "1.11.1". Empty = registry latest.
+        confirm: False (default) returns the blast radius and changes nothing.
+            True applies it.
+        chart_version: Pin the chart, e.g. "1.11.1". Empty = registry latest,
+            resolved at apply time, so it can differ from the preview.
+        dry_run: Deprecated alias; removed in the next minor release. The old
+            contract applied only with dry_run=false and confirmed=true;
+            dry_run=true holds even when confirm=True.
+        confirmed: Deprecated alias for confirm; removed in the next minor
+            release. confirmed=False holds even when confirm=True.
     """
-    from vmware_avi.ops.ako_config import upgrade_ako
+    from vmware_avi.ops import ako_config, ako_gate
+    from vmware_avi.ops.write_gate import resolve_confirm
 
-    if not dry_run and not confirmed:
-        return (
-            "[preview] Would helm-upgrade the AKO release in avi-system from the "
-            f"official Broadcom OCI chart ({chart_version or 'registry latest'}) "
-            "with --reuse-values. "
-            "Re-invoke with confirmed=True to execute, or use dry_run=True to preview."
+    decision = resolve_confirm(confirm, confirmed=confirmed, dry_run=dry_run,
+                               legacy_needs_dry_run_false=True)
+
+    def apply() -> str:
+        return _capture_output(
+            ako_config.upgrade_ako, False, chart_version=chart_version, skip_prompt=True
         )
-    return _capture_output(
-        upgrade_ako, dry_run, chart_version=chart_version, skip_prompt=True
-    )
+
+    return _gated("ako_config_upgrade", decision.deprecated,
+                  lambda: ako_gate.upgrade(chart_version, act=decision.act, apply=apply))
 
 
 @mcp.tool(
@@ -875,32 +943,44 @@ def ako_sync_diff(context: Optional[str] = None) -> str:
     }
 )
 @vmware_tool(risk_level="high")
-def ako_sync_force(context: Optional[str] = None, confirmed: bool = False) -> str:
+def ako_sync_force(
+    context: Optional[str] = None,
+    confirm: bool = False,
+    confirmed: Optional[bool] = None,
+) -> dict:
     """[WRITE] Force AKO to resync all K8s resources with the AVI Controller.
 
-    Returns a one-line result. Use when drift is detected; may cause brief
+    The resync restarts the AKO pod so it rebuilds every Virtual Service, pool
+    and VS-VIP from the cluster's current resources. Without confirm=True this
+    only previews: it returns blast_radius (context, namespace, the pod's name,
+    uid and phase, and the Ingresses it re-programs) and changes nothing. Show
+    that to the user and get their explicit decision. Do not set confirm=True
+    on your own because the user asked earlier: they have not seen what it
+    changes yet.
+
+    Refused with confirm=True: a pod already terminating, and a pod or Ingress
+    list that cannot be read. Use when drift is detected; may cause brief
     traffic disruption. Run ako_sync_diff first to see what is out of sync,
     then ako_sync_status.
 
-    SAFETY: requires confirmed=True; without it you get a preview only.
-
     Args:
         context: K8s context name (optional).
-        confirmed: false (the default) returns a preview and changes nothing;
-            true forces the resync, which restarts the AKO pod so it rebuilds
-            every Virtual Service, pool and VS-VIP from the cluster's current
-            resources — brief traffic disruption is possible.
+        confirm: False (default) returns the blast radius and changes nothing.
+            True applies it.
+        confirmed: Deprecated alias for confirm; removed in the next minor
+            release. confirmed=False holds even when confirm=True.
     """
-    if not confirmed:
-        ctx_hint = f" in context '{context}'" if context else ""
-        return (
-            f"[preview] Would force AKO to resync all K8s resources with AVI Controller{ctx_hint} "
-            "(restarts AKO pod — may cause brief traffic disruption). "
-            "Re-invoke with confirmed=True to execute."
-        )
+    from vmware_avi.ops import ako_gate
     from vmware_avi.ops.ako_sync import force_resync
+    from vmware_avi.ops.write_gate import resolve_confirm
 
-    return _capture_output(force_resync, context, skip_prompt=True)
+    decision = resolve_confirm(confirm, confirmed=confirmed)
+    effect = ("Deletes the AKO pod to force a full resync: every Virtual Service, pool and VS-VIP "
+              "is rebuilt from the cluster's resources; brief traffic disruption is possible.")
+    return _gated("ako_sync_force", decision.deprecated, lambda: ako_gate.delete_ako_pod(
+        "ako_sync_force", context, effect, act=decision.act,
+        apply=lambda uid: _capture_output(force_resync, context, skip_prompt=True, uid=uid),
+    ))
 
 
 @mcp.tool(

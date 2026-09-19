@@ -95,14 +95,31 @@ def view_ako_logs(tail: int = 100, since: str = "", context: str | None = None) 
     print_external(console, logs)
 
 
-def restart_ako(context: str | None = None, *, skip_prompt: bool = False) -> None:
+def uid_precondition(uid: str | None) -> dict:
+    """Keyword arguments that make a pod delete apply only to the pod with ``uid``.
+
+    The MCP gate measures one pod and passes its uid, so a replacement that
+    appeared in between is refused by the API server (409) instead of deleted.
+    ``None`` — the CLI — sends no precondition, as before.
+    """
+    if uid is None:
+        return {}
+    from kubernetes.client import V1DeleteOptions, V1Preconditions
+
+    return {"body": V1DeleteOptions(preconditions=V1Preconditions(uid=uid))}
+
+
+def restart_ako(
+    context: str | None = None, *, skip_prompt: bool = False, uid: str | None = None
+) -> None:
     """Restart AKO pod by deleting it (its StatefulSet recreates it).
 
     Args:
         context: K8s context name (optional, uses current context).
         skip_prompt: When True, bypass the interactive double-confirm prompt.
-            Used by MCP callers that enforce confirmation via the ``confirmed``
+            Used by MCP callers that enforce confirmation via the ``confirm``
             parameter before reaching this function.
+        uid: Delete only if the pod still has this uid (see ``uid_precondition``).
     """
     if not skip_prompt:
         from vmware_avi._safety import double_confirm
@@ -122,7 +139,7 @@ def restart_ako(context: str | None = None, *, skip_prompt: bool = False) -> Non
         console.print(f"[red]{exc}[/red]")
         raise SystemExit(1)
 
-    v1.delete_namespaced_pod(pod_name, ns)
+    v1.delete_namespaced_pod(pod_name, ns, **uid_precondition(uid))
     console.print(f"[green]AKO pod '{pod_name}' deleted. StatefulSet will recreate it.[/green]")
 
 

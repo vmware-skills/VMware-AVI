@@ -1,6 +1,6 @@
 {
   "name": "@zw008/vmware-avi",
-  "version": "1.9.1",
+  "version": "1.10.0",
   "description": "VMware AVI (NSX ALB) load balancer plus AKO Kubernetes ops — 28 MCP tools.",
   "private": true,
   "license": "MIT",

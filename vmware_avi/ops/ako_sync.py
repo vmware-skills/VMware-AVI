@@ -119,14 +119,18 @@ def _matched_by_pool(ingress_short: str, pool_names: set[str]) -> bool:
     return False
 
 
-def force_resync(context: str | None = None, *, skip_prompt: bool = False) -> None:
+def force_resync(
+    context: str | None = None, *, skip_prompt: bool = False, uid: str | None = None
+) -> None:
     """Force AKO to resync by restarting the pod.
 
     Args:
         context: K8s context name (optional, uses current context).
         skip_prompt: When True, bypass the interactive double-confirm prompt.
-            Used by MCP callers that enforce confirmation via the ``confirmed``
+            Used by MCP callers that enforce confirmation via the ``confirm``
             parameter before reaching this function.
+        uid: Delete only if the pod still has this uid
+            (``ako_pod.uid_precondition``).
     """
     if not skip_prompt:
         from vmware_avi._safety import double_confirm
@@ -140,10 +144,10 @@ def force_resync(context: str | None = None, *, skip_prompt: bool = False) -> No
     v1 = k8s.core_v1(context)
     ns = k8s.namespace
 
-    from vmware_avi.ops.ako_pod import _get_ako_pod_name
+    from vmware_avi.ops.ako_pod import _get_ako_pod_name, uid_precondition
 
     pod_name = _get_ako_pod_name(v1, ns)
-    v1.delete_namespaced_pod(pod_name, ns)
+    v1.delete_namespaced_pod(pod_name, ns, **uid_precondition(uid))
     console.print(
         f"[green]AKO pod '{pod_name}' deleted to trigger full resync. "
         "StatefulSet will recreate it.[/green]"

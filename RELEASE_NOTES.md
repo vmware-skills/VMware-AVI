@@ -1,3 +1,51 @@
+## v1.10.0 — MCP writes preview their blast radius until `confirm=true` (HLD §7)
+
+**Breaking for MCP callers:**
+
+- `vs_toggle`, `pool_member_disable`, `ako_restart`, `ako_sync_force` and `ako_config_upgrade` take
+  `confirm: bool = False`. A call without `confirm=true` returns
+  `{"action": "preview", "blast_radius": {...}, "hint": ...}` and changes nothing.
+- **Enabling a Virtual Service now previews too.** `vs_toggle(enable=true)` used to act on the first
+  call; a bare call now previews in both directions.
+- **`ako_config_upgrade` with no arguments no longer runs `helm upgrade --dry-run` as its answer.** The
+  preview still runs it and returns the output as `helm_dry_run`, next to the blast radius.
+- **Return type:** all five tools returned a string; they now return a dict. Preview, `noop` (already
+  in the requested state: VS already enabled/disabled, member already disabled), acted
+  (`action` = `enabled` / `disabled` / `drained` / `pod_deleted` / `upgraded`, with the executor's
+  message in `result`), or an error: a refusal or a failed executor run returns `{"error": ..., "blast_radius": ...}`;
+  an object that cannot be found (VS, pool, member) or a missing `helm` returns `{"error": ..., "hint": ...}`.
+  The `[preview]` string prefix is gone.
+* Requires `vmware-policy>=1.17.0`, which audits a `confirm=False` preview as `dry_run` and redacts long
+  audit text in linear time.
+- `confirmed` (all five) and `dry_run` (`ako_config_upgrade`) remain as deprecated aliases for one minor
+  release, defaulting to null. The conservative reading wins: `confirmed=true` still acts (for the
+  upgrade only together with `dry_run=false`, as before), but an explicit `confirmed=false` or
+  `dry_run=true` holds even next to `confirm=true`. Any call that passes an alias gets a `deprecated` note.
+
+**Blast radius (L1)**, measured with reads the skill already makes:
+
+- `vs_toggle`: VS name and uuid, enabled now / after, oper status, VIPs, and every pool behind it
+  (direct and through pool groups, via `virtualservice-inventory`) with member and enabled-member counts.
+- `pool_member_disable`: pool name and uuid, the member (IP, port, enabled, ratio), member count, enabled
+  members before and after. When the pool's `servers` cannot be read, those counts are `null` (not 0)
+  and `servers` is listed in `unmeasured`, so `confirm=true` refuses.
+- `ako_restart` / `ako_sync_force`: context, namespace, AKO pod name, uid, phase, ready, restarts, and the
+  Ingresses (count, first 16) whose programming pauses.
+- `ako_config_upgrade`: release, namespace, chart and app version now, revision, status, chart it moves to
+  (flagged when unpinned).
+
+**Refusals (L3)** — `confirm=true` is refused with a teaching error, and audited as a failure, when:
+
+- the pool member is the pool's only enabled member, or its IP matches more than one member;
+- the AKO pod is already terminating;
+- `helm upgrade --dry-run` fails, or the release is in a `pending-*` state;
+- anything the blast radius depends on could not be read (VS uuid or pools, pool members, the pod, its
+  uid, the Ingress list, the release status).
+
+The AKO pod delete now carries a uid precondition: the pod deleted is the pod that was measured.
+`restart_ako` / `force_resync` accept an optional `uid` for this; the CLI does not pass one and is unchanged.
+CLI flags and prompts are unchanged.
+
 ## v1.9.1 — CLI reads are audited
 
 No CLI read wrote `~/.vmware/audit.db` — only MCP calls and CLI writes (`@guarded`) did. A live

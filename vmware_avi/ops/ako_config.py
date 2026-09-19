@@ -166,7 +166,7 @@ def upgrade_ako(
             upgrade. Pass the same value to :func:`diff_ako_config` so the
             preview and the apply target one chart.
         skip_prompt: When True, bypass the interactive double-confirm prompt.
-            Used by MCP callers that enforce confirmation via the ``confirmed``
+            Used by MCP callers that enforce confirmation via the ``confirm``
             parameter before reaching this function.
     """
     release = _find_ako_release(namespace)

@@ -485,6 +485,7 @@ vmware-avi-mcp
 |------|------|
 | **双重确认** | 破坏性操作（VS 禁用、池成员禁用、AKO 重启、Helm 升级、强制同步）需要 2 次确认 |
 | **默认 Dry-Run** | `ako config upgrade` 默认为 `--dry-run` 模式，用户必须显式确认才会执行 |
+| **MCP 影响范围（blast radius）** | `vs_toggle`、`pool_member_disable`、`ako_restart`、`ako_sync_force`、`ako_config_upgrade` 带 `confirm` 参数（默认 `false`）：不传 `confirm=true` 时只返回 `blast_radius`（将改变什么：VS/池及成员数、AKO Pod 及其 Ingress、Helm release 与 chart 版本变化），不做任何修改。遇到阻断项（池内唯一启用的成员、正在终止的 AKO Pod、`helm --dry-run` 失败）或有字段读不到时，`confirm=true` 会被拒绝。`confirmed` / `dry_run` 为已弃用的别名 |
 | **审计日志** | 所有操作通过 vmware-policy（`@vmware_tool` 装饰器）记录到 `~/.vmware/audit.db` |
 | **密码保护** | `.env` 文件加载并检查权限；密码不会出现在 shell 历史记录中 |
 | **SSL 支持** | `verify_ssl: false` 仅用于隔离实验环境中的自签名证书 |

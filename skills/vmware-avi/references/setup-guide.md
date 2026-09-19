@@ -21,7 +21,7 @@ Complete installation, configuration, and AI platform integration guide for the 
 ### Standard Install (recommended)
 
 ```bash
-uv tool install vmware-avi==1.9.1
+uv tool install vmware-avi==1.10.0
 ```
 
 This installs the CLI (`vmware-avi`, with `vmware-avi mcp` subcommand for the MCP server in v1.5.15+), the legacy `vmware-avi-mcp` entry point (for backward compatibility), and all Python dependencies in an isolated environment.
@@ -29,7 +29,7 @@ This installs the CLI (`vmware-avi`, with `vmware-avi mcp` subcommand for the MC
 ### Development Install
 
 ```bash
-git clone --branch v1.9.1 https://github.com/vmware-skills/VMware-AVI.git
+git clone --branch v1.10.0 https://github.com/vmware-skills/VMware-AVI.git
 cd VMware-AVI
 uv pip install -e ".[dev]"
 ```
@@ -43,7 +43,7 @@ For platforms that prefer containerized MCP servers (e.g., Smithery registry, Ku
 Build and run the MCP server in a container. The image uses `python:3.12-slim` with `uv` for dependency installation and runs `python -m vmware_avi.mcp_server` on stdio (no port exposed — MCP uses stdin/stdout).
 
 ```bash
-git clone --branch v1.9.1 https://github.com/vmware-skills/VMware-AVI.git
+git clone --branch v1.10.0 https://github.com/vmware-skills/VMware-AVI.git
 cd VMware-AVI
 
 # Build
@@ -72,7 +72,7 @@ Users can install via the Smithery UI or CLI without managing Python environment
 
 | Deployment | Best For |
 |------------|----------|
-| `uv tool install vmware-avi==1.9.1` + `vmware-avi mcp` | Local developer workstation, single-user CLI + MCP |
+| `uv tool install vmware-avi==1.10.0` + `vmware-avi mcp` | Local developer workstation, single-user CLI + MCP |
 | Docker image | Self-hosted agents, CI runners, isolated environments, multi-user servers |
 | Smithery | Zero-install agent integration, registry-managed discovery, hosted-MCP workflows |
 
@@ -233,11 +233,11 @@ Optional deny rules and maintenance windows can be configured in `~/.vmware/rule
 
 | Operation | Safety Measures |
 |-----------|----------------|
-| VS disable | Double confirmation prompt |
-| Pool member disable | Double confirmation prompt (graceful drain) |
-| AKO restart | Double confirmation prompt |
-| AKO config upgrade | Defaults to `--dry-run`; double confirmation for actual apply |
-| AKO sync force | Double confirmation prompt |
+| VS disable | CLI: double confirmation prompt. MCP `vs_toggle`: previews `blast_radius` unless `confirm=true` |
+| Pool member disable | CLI: double confirmation prompt (graceful drain). MCP: previews unless `confirm=true`; refuses the pool's only enabled member |
+| AKO restart | CLI: double confirmation prompt. MCP: previews unless `confirm=true`; refuses a terminating pod |
+| AKO config upgrade | CLI: defaults to `--dry-run`; double confirmation for actual apply. MCP: previews (with `helm --dry-run` output) unless `confirm=true`; refuses a failing dry-run |
+| AKO sync force | CLI: double confirmation prompt. MCP: previews unless `confirm=true` |
 
 ### Read-Only Operation
 

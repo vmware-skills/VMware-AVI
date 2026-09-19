@@ -113,10 +113,12 @@ your agent's instruction block.
 
 ## Writes in vmware-avi
 
-- vs_toggle takes a virtual service out of service. Name the VS and its current
-  state, and wait for confirmation.
+- vs_toggle takes a virtual service out of service. Call it without confirm
+  first: that returns blast_radius (the VS, its current state, the pools and
+  members behind it) and changes nothing. Show it and wait for the user's
+  decision before calling again with confirm=true.
 - ako_config_upgrade is a Helm release upgrade against a live cluster. Show
-  ako_config_diff first.
+  ako_config_diff first, then the preview (without confirm) of the upgrade.
 - A pool member that reports "down" straight after being enabled is failing its
   health monitor. Report that, do not re-enable it in a loop.
 ```
