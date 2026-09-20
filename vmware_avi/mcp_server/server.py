@@ -6,6 +6,7 @@ Entry point: vmware-avi-mcp (defined in pyproject.toml).
 
 import logging
 from io import StringIO
+from pathlib import Path
 from typing import Optional
 
 from mcp.server.fastmcp import FastMCP
@@ -45,11 +46,22 @@ _TARGET_RULE = (
 
 
 def _config_path_or_default() -> str:
-    """The config file this server tried to read, for a message that has to not raise."""
+    """The config file this server tried to read, with the home directory as ``~``.
+
+    Which file matters: with ``VMWARE_AVI_CONFIG`` set it is not ``CONFIG_FILE``,
+    and naming the one this server did not read sends the operator to edit the
+    wrong file. The home directory is collapsed because the absolute form carries
+    the account name, and this string goes straight into a model's context.
+    Never raises — a path is not worth failing startup over.
+    """
     try:
-        return str(resolve_config_path())
-    except Exception:  # noqa: BLE001 — a path is not worth failing startup over
-        return str(CONFIG_FILE)
+        path = resolve_config_path()
+    except Exception:  # noqa: BLE001
+        path = Path(CONFIG_FILE)
+    try:
+        return f"~/{Path(path).relative_to(Path.home())}"
+    except ValueError:  # outside the home directory: nothing to collapse
+        return str(path)
 
 
 def _controller_listing() -> str:
@@ -64,7 +76,6 @@ def _controller_listing() -> str:
     (形态 #1).
     """
     try:
-        path = resolve_config_path()
         cfg = load_config()
         controllers = cfg.controllers
         # Mirrors AppConfig.active_controller: an unset default_controller means
@@ -85,8 +96,8 @@ def _controller_listing() -> str:
         )
     if not controllers:
         return (
-            f"Configured targets: none — {path} declares no Controller. Run "
-            "`vmware-avi init`."
+            f"Configured targets: none — {_config_path_or_default()} declares no "
+            "Controller. Run `vmware-avi init`."
         )
     listed = "; ".join(
         f"{c.name} ({c.host}, tenant {c.tenant}"

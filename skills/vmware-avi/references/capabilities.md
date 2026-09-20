@@ -37,7 +37,7 @@ All 28 MCP tools exposed by `vmware-avi mcp` (v1.5.15+; legacy entry point: `vmw
 | `vmware-avi mcp` (CLI subcommand, stdio) | ✅ Full | ✅ v1.5.15+ default — no PyPI re-resolve, works behind corporate TLS proxies. |
 | `vmware-avi-mcp` (legacy console script, stdio) | ✅ Full | Kept for backward compatibility with pre-1.5.15 configs. |
 | `python -m vmware_avi.mcp_server` (stdio, via `__main__.py`) | ✅ Full | Docker image `CMD` only — not for end-user CLI install, and no longer used by `smithery.yaml` (which now calls the `vmware-avi mcp` entry point). Added v1.5.22. |
-| `uvx --from vmware-avi==1.10.0 vmware-avi-mcp` | ⚠ Fallback | Re-resolves PyPI on each launch; fails behind corporate TLS proxies (踩坑 #25). Use `UV_NATIVE_TLS=true` workaround. |
+| `uvx --from vmware-avi==1.11.0 vmware-avi-mcp` | ⚠ Fallback | Re-resolves PyPI on each launch; fails behind corporate TLS proxies (踩坑 #25). Use `UV_NATIVE_TLS=true` workaround. |
 
 ## Automation Level Reference
 

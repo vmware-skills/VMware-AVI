@@ -139,3 +139,26 @@ def test_the_server_object_carries_the_built_instructions(monkeypatch):
     assert srv.mcp.instructions
     assert RULE_MARKER in srv.mcp.instructions
     assert LISTING_MARKER in srv.mcp.instructions
+
+
+@pytest.mark.unit
+def test_the_config_path_is_shown_without_the_account_name(monkeypatch, tmp_path):
+    """Which file to edit is useful; whose machine it is, is not.
+
+    The absolute form of a default config path contains the account name, and
+    this string goes straight into a model's context. Naming the file still
+    matters — with ``VMWARE_AVI_CONFIG`` set it is not ``CONFIG_FILE``, and
+    pointing at the file this server did not read sends the operator to edit the
+    wrong one — so the home directory is collapsed rather than the path dropped.
+    """
+    fake_home = tmp_path / "Users" / "someone"
+    (fake_home / ".vmware-avi").mkdir(parents=True)
+    monkeypatch.setattr(srv.Path, "home", staticmethod(lambda: fake_home))
+    monkeypatch.setattr(
+        srv, "resolve_config_path", lambda: fake_home / ".vmware-avi" / "config.yaml"
+    )
+
+    shown = srv._config_path_or_default()
+
+    assert shown == "~/.vmware-avi/config.yaml"
+    assert "someone" not in shown
