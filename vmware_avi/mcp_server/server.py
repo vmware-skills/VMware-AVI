@@ -17,12 +17,98 @@ from vmware_policy import (
 )
 
 from vmware_avi import __version__
-from vmware_avi.config import ConfigError
+from vmware_avi.config import CONFIG_FILE, ConfigError, load_config, resolve_config_path
 from vmware_avi.connection import AviApiError
 
 _log = logging.getLogger("vmware-avi-mcp")
 
-mcp = FastMCP("vmware-avi")
+
+_BASE_INSTRUCTIONS = (
+    "AVI (NSX Advanced Load Balancer) load balancing and AKO Kubernetes "
+    "operations. Inspect and toggle virtual services, drain pool members, check "
+    "SSL certificate expiry, Service Engine health and analytics, and "
+    "troubleshoot the AKO pod, its Helm config and its Ingress sync."
+)
+
+_TARGET_RULE = (
+    " Choosing a target: the tool that reads across Controllers, `vs_list`, takes "
+    "`controller`. Choose it from what the user asked. Every other Controller tool "
+    "runs against the default controller and takes no `controller`, so a "
+    "question about a different one cannot be answered per call — say which "
+    "controller you can reach instead of answering from the default as if it were "
+    "the one asked about. If the request does not say which controller, and the "
+    "configured controllers could answer differently, ask the user which one "
+    "before querying. No result names the `controller` that answered, so name it "
+    "in the answer yourself. The AKO tools are Kubernetes-side and not "
+    "Controller-scoped: they take `context`, a kubeconfig context, instead."
+)
+
+
+def _config_path_or_default() -> str:
+    """The config file this server tried to read, for a message that has to not raise."""
+    try:
+        return str(resolve_config_path())
+    except Exception:  # noqa: BLE001 — a path is not worth failing startup over
+        return str(CONFIG_FILE)
+
+
+def _controller_listing() -> str:
+    """The configured Controllers, as a client should be told about them.
+
+    Built from the config the tools themselves read, because a hardcoded
+    sentence drifts from the operator's file the day they edit it. Never
+    raises: an absent or broken config must not stop the server from starting —
+    the tools report that error themselves, with the remedy. When it cannot be
+    read, this says so rather than implying there are none, because "no
+    Controllers" and "could not look" lead a model to different next steps
+    (形态 #1).
+    """
+    try:
+        path = resolve_config_path()
+        cfg = load_config()
+        controllers = cfg.controllers
+        # Mirrors AppConfig.active_controller: an unset default_controller means
+        # the first entry, which is the Controller the tools actually use.
+        default_name = controllers[0].name if controllers else ""
+        if cfg.default_controller:
+            default_name = cfg.default_controller
+    except Exception as exc:  # noqa: BLE001 — instructions are advisory, startup is not
+        # The path comes from resolve_config_path, not CONFIG_FILE: with
+        # VMWARE_AVI_CONFIG set they are different files, and naming the one this
+        # server did not read sends the operator to edit the wrong one. Only the
+        # exception's type is quoted — its text can carry a host or a certificate
+        # subject, and these instructions go straight into a model's context.
+        return (
+            f"Configured targets: could not be read ({type(exc).__name__}) from "
+            f"{_config_path_or_default()}; run `vmware-avi doctor` to see which "
+            "Controllers are configured."
+        )
+    if not controllers:
+        return (
+            f"Configured targets: none — {path} declares no Controller. Run "
+            "`vmware-avi init`."
+        )
+    listed = "; ".join(
+        f"{c.name} ({c.host}, tenant {c.tenant}"
+        f"{', default' if c.name == default_name else ''})"
+        for c in controllers
+    )
+    return f"Configured targets: {listed}."
+
+
+def _target_instructions() -> str:
+    """Server instructions that name the configured Controllers and how to pick one.
+
+    `initialize` returns this text, and it is the only place a client learns
+    which Controllers exist. Without it the model calls tools with no
+    `controller`, gets the default, and answers confidently about the wrong
+    system — measured in Monitor on 2026-09-15, where the default target was a
+    standalone ESXi host and "the vCenter has 9 VMs" was read from it.
+    """
+    return f"{_BASE_INSTRUCTIONS} {_controller_listing()}{_TARGET_RULE}"
+
+
+mcp = FastMCP("vmware-avi", instructions=_target_instructions())
 
 # FastMCP takes no version argument and leaves the lowlevel server's at
 # None, which makes `initialize` answer with the MCP SDK's version rather
