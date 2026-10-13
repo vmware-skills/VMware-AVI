@@ -133,6 +133,12 @@ ako:
   namespace: avi-system
 ```
 
+**TLS verification**: `verify_ssl` defaults to `true` when omitted — keep it on for any real controller; the
+account is privileged, and with verification off anyone on the network path can impersonate the controller and
+capture its password. For a certificate issued by a private CA, trust that CA rather than turning verification off.
+`verify_ssl: false` (like `staging-avi` above) is for an isolated lab controller with a self-signed certificate
+only, never for production.
+
 **config.yaml fields**:
 
 | Field | Required | Default | Description |
@@ -347,7 +353,7 @@ echo 'PROD_AVI_PASSWORD=yourpassword' >> ~/.vmware-avi/.env
 
 1. Verify the `host` and `port` in config.yaml are correct
 2. Test network connectivity: `curl -k https://avi-controller.example.com/api/cluster`
-3. For self-signed certs, set `verify_ssl: false` in config.yaml
+3. For a self-signed certificate on an isolated lab controller only, set `verify_ssl: false` on that entry; for a private-CA certificate, trust that CA instead of turning verification off
 4. Check if a firewall or VPN is blocking port 443
 
 ### MCP server not starting
