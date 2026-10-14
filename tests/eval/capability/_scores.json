@@ -5,25 +5,25 @@
       "detail": {
         "broken_chains": [],
         "entry_points": [
-          "vs_list",
-          "pool_list",
-          "ssl_list",
-          "ssl_expiry_check",
-          "se_list",
-          "se_health",
-          "ako_status",
-          "ako_logs",
-          "ako_restart",
-          "ako_version",
-          "ako_config_show",
-          "ako_config_diff",
-          "ako_config_upgrade",
-          "ako_ingress_map",
-          "ako_sync_status",
-          "ako_sync_diff",
-          "ako_sync_force",
-          "ako_clusters",
-          "ako_amko_status"
+          "list_virtual_services",
+          "list_lb_pools",
+          "list_ssl_certs",
+          "check_ssl_cert_expiry",
+          "list_service_engines",
+          "get_service_engine_health",
+          "get_ako_status",
+          "get_ako_logs",
+          "restart_ako",
+          "get_ako_version",
+          "get_ako_config",
+          "diff_ako_config",
+          "upgrade_ako_config",
+          "list_ako_ingresses",
+          "get_ako_sync_status",
+          "diff_ako_sync",
+          "force_ako_sync",
+          "list_ako_clusters",
+          "get_ako_amko_status"
         ],
         "reachable_on_surface": 10,
         "reachable_only_via_description": 1,
@@ -40,22 +40,22 @@
       "detail": {
         "broken_chains": [],
         "entry_points": [
-          "vs_list",
-          "pool_list",
-          "ssl_list",
-          "ssl_expiry_check",
-          "se_list",
-          "se_health",
-          "ako_status",
-          "ako_logs",
-          "ako_version",
-          "ako_config_show",
-          "ako_config_diff",
-          "ako_ingress_map",
-          "ako_sync_status",
-          "ako_sync_diff",
-          "ako_clusters",
-          "ako_amko_status"
+          "list_virtual_services",
+          "list_lb_pools",
+          "list_ssl_certs",
+          "check_ssl_cert_expiry",
+          "list_service_engines",
+          "get_service_engine_health",
+          "get_ako_status",
+          "get_ako_logs",
+          "get_ako_version",
+          "get_ako_config",
+          "diff_ako_config",
+          "list_ako_ingresses",
+          "get_ako_sync_status",
+          "diff_ako_sync",
+          "list_ako_clusters",
+          "get_ako_amko_status"
         ],
         "reachable_on_surface": 5,
         "reachable_only_via_description": 1,
@@ -98,11 +98,11 @@
     "manifest_context_headroom": {
       "detail": {
         "heaviest_tools": {
-          "ako_config_upgrade": 229,
-          "ako_ingress_diagnose": 188,
-          "ako_logs": 190,
-          "pool_member_disable": 215,
-          "vs_toggle": 183
+          "upgrade_ako_config": 229,
+          "diagnose_ako_ingress": 188,
+          "get_ako_logs": 190,
+          "disable_lb_pool_member": 215,
+          "set_virtual_service_enabled": 183
         },
         "manifest_tokens": 3588,
         "mean_tokens_per_tool": 128.1,
@@ -118,7 +118,7 @@
       "detail": {
         "undocumented_by_tool": {},
         "value_set_candidates": {
-          "vs_error_logs.since": [
+          "get_virtual_service_error_logs.since": [
             "1h",
             "2d",
             "30m"
@@ -147,12 +147,12 @@
         "gated_manifest_tokens": 2252,
         "gated_tool_count": 22,
         "withheld_tools": [
-          "ako_config_upgrade",
-          "ako_restart",
-          "ako_sync_force",
-          "pool_member_disable",
-          "pool_member_enable",
-          "vs_toggle"
+          "upgrade_ako_config",
+          "restart_ako",
+          "force_ako_sync",
+          "disable_lb_pool_member",
+          "enable_lb_pool_member",
+          "set_virtual_service_enabled"
         ]
       },
       "maximum": 3039,
@@ -200,14 +200,14 @@
         },
         "tools_graded": 28,
         "weakest_tools": {
-          "ako_amko_status": [],
-          "ako_clusters": [],
-          "ako_config_diff": [],
-          "ako_config_show": [],
-          "ako_config_upgrade": [],
-          "ako_ingress_check": [],
-          "ako_ingress_diagnose": [],
-          "pool_list": [
+          "get_ako_amko_status": [],
+          "list_ako_clusters": [],
+          "diff_ako_config": [],
+          "get_ako_config": [],
+          "upgrade_ako_config": [],
+          "check_ako_ingress": [],
+          "diagnose_ako_ingress": [],
+          "list_lb_pools": [
             "gotcha"
           ]
         }

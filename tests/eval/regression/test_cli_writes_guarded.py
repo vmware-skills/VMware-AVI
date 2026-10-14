@@ -3,7 +3,7 @@
 A write CLI command must route through vmware_policy's guard() + audit_call() —
 the same enforcement @vmware_tool gives the MCP surface — so ``vmware-avi vs
 disable`` run through Bash is authorized and audited to ~/.vmware/audit.db exactly
-like the ``vs_toggle`` MCP tool. Without @guarded a CLI write bypassed policy and
+like the ``set_virtual_service_enabled`` MCP tool. Without @guarded a CLI write bypassed policy and
 landed only in the legacy per-skill log (the gap HLD §2.1 documents).
 
 The write set is DERIVED, never hand-listed (踩坑 #43): a tool annotated
@@ -222,13 +222,13 @@ def _op_to_mcp_tools() -> dict[str, set[str]]:
 # Guarded CLI writes whose ops function backs more than one MCP write tool, with
 # the tool each command IS. The op-level derivation cannot tell which tool the
 # command mirrors, so the twin is named here rather than guessed:
-# toggle_pool_member(enable=True/False) backs pool_member_enable and
-# pool_member_disable, and the command's direction picks the twin. Listed
+# toggle_pool_member(enable=True/False) backs enable_lb_pool_member and
+# disable_lb_pool_member, and the command's direction picks the twin. Listed
 # commands are still checked — name and risk — against the twin named here, and
 # the test fails if an entry stops being ambiguous, so this list cannot go stale.
 _AMBIGUOUS = {
-    "pool_enable": "pool_member_enable",
-    "pool_disable": "pool_member_disable",
+    "pool_enable": "enable_lb_pool_member",
+    "pool_disable": "disable_lb_pool_member",
 }
 
 # Guarded CLI writes with no MCP twin at all (they keep their own name).
@@ -240,7 +240,7 @@ def test_guarded_cli_writes_carry_their_mcp_tool_name():
 
     ``@guarded`` defaults the tool name to the function's ``__name__``, so
     ``ako sync-force`` was guarded as ``ako_sync_force_cmd`` while its MCP twin is
-    ``ako_sync_force`` — a rule denying ``ako_sync_force`` refused the agent and
+    ``force_ako_sync`` — a rule denying ``force_ako_sync`` refused the agent and
     let the same resync through the CLI, and the two surfaces wrote the one audit
     sink under two names. The twin is DERIVED: the MCP write tool that uses the
     same ops function the command uses.
@@ -305,13 +305,13 @@ def test_guarded_cli_writes_carry_their_mcp_tool_name():
 
 
 def test_vs_enable_and_disable_audit_rows_record_the_direction(monkeypatch):
-    """`vs enable` and `vs disable` are both the MCP tool ``vs_toggle``.
+    """`vs enable` and `vs disable` are both the MCP tool ``set_virtual_service_enabled``.
 
     A guarded row records the guarded function's parameters. When each command
     was guarded directly, both rows read ``{"name": "web-vs"}`` — the audit
     could not say whether the Virtual Service was switched on or off. Exactly one
     row per invocation (a doubly-guarded path would write two), both under
-    ``vs_toggle``, and they must differ in ``enable``.
+    ``set_virtual_service_enabled``, and they must differ in ``enable``.
     """
     from unittest.mock import patch
 
@@ -333,7 +333,7 @@ def test_vs_enable_and_disable_audit_rows_record_the_direction(monkeypatch):
             new = rows[before:]
             assert len(new) == 1, f"`vs {command}` wrote {len(new)} audit rows, expected one"
             (row,) = new
-            assert row["args"][1] == "vs_toggle", row["args"]
+            assert row["args"][1] == "set_virtual_service_enabled", row["args"]
             assert row["status"] == "ok", row
             recorded[command] = row["params"]
 

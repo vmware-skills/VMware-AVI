@@ -10,7 +10,7 @@ Each test pins one production bug:
 3. Centralized HTTP error translation (CLAUDE.md 踩坑 #37): AviApiError with
    teaching hints, single retry on 502/503/504, no retry on 4xx, teaching
    error when the controller is unreachable.
-4. MCP ako_config_upgrade used the interactive double-confirm prompt, which
+4. MCP upgrade_ako_config used the interactive double-confirm prompt, which
    blocks on stdin and corrupts MCP stdio — replaced with a confirmed=False
    preview gate + skip_prompt path.
 5. view_ako_logs / restart_ako / show_ako_version leaked RuntimeError when
@@ -333,7 +333,7 @@ class TestMcpUpgradeGate:
 
         self._measured(monkeypatch)
         with patch("vmware_avi.ops.ako_config.upgrade_ako") as mock_upgrade:
-            out = server.ako_config_upgrade(dry_run=False, confirmed=False)
+            out = server.upgrade_ako_config(dry_run=False, confirmed=False)
 
         mock_upgrade.assert_not_called()
         assert out["action"] == "preview"
@@ -344,7 +344,7 @@ class TestMcpUpgradeGate:
 
         self._measured(monkeypatch)
         with patch("vmware_avi.ops.ako_config.upgrade_ako") as mock_upgrade:
-            server.ako_config_upgrade(confirm=True)
+            server.upgrade_ako_config(confirm=True)
 
         mock_upgrade.assert_called_once()
         assert mock_upgrade.call_args.kwargs.get("skip_prompt") is True
@@ -354,7 +354,7 @@ class TestMcpUpgradeGate:
 
         self._measured(monkeypatch)
         with patch("vmware_avi.ops.ako_config.upgrade_ako") as mock_upgrade:
-            out = server.ako_config_upgrade(dry_run=True, confirmed=False)
+            out = server.upgrade_ako_config(dry_run=True, confirmed=False)
 
         mock_upgrade.assert_not_called()
         assert out["helm_dry_run"] == "dry-run output"

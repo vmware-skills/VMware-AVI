@@ -22,7 +22,7 @@ def list_pools(vs_filter: str | None = None) -> None:
     """Discover pools available on the Controller.
 
     Supports the common case where pool names differ from VS names — users
-    need to list pools before calling ``pool_members <name>``. When
+    need to list pools before calling ``list_lb_pool_members <name>``. When
     ``vs_filter`` is supplied, list only pools referenced by Virtual Services
     whose name contains the substring.
     """
@@ -109,7 +109,7 @@ def list_pool_members(pool_name: str) -> None:
     pool = session.get_object_by_name("pool", pool_name)
     if not pool:
         console.print(
-            f"[red]Pool '{pool_name}' not found on this Controller. Run pool_list to "
+            f"[red]Pool '{pool_name}' not found on this Controller. Run list_lb_pools to "
             "see available pools and copy an exact name.[/red]"
         )
         raise SystemExit(1)
@@ -162,7 +162,7 @@ def toggle_pool_member(
     pool = session.get_object_by_name("pool", pool_name)
     if not pool:
         console.print(
-            f"[red]Pool '{pool_name}' not found on this Controller. Run pool_list to "
+            f"[red]Pool '{pool_name}' not found on this Controller. Run list_lb_pools to "
             "see available pools and copy an exact name.[/red]"
         )
         raise SystemExit(1)
@@ -177,7 +177,7 @@ def toggle_pool_member(
     if not found:
         console.print(
             f"[red]Server '{server_ip}' is not a member of pool '{pool_name}'. Run "
-            f"pool_members (CLI: vmware-avi pool members '{pool_name}') to list the "
+            f"list_lb_pool_members (CLI: vmware-avi pool members '{pool_name}') to list the "
             "member IPs and copy an exact one.[/red]"
         )
         raise SystemExit(1)
@@ -189,7 +189,7 @@ def toggle_pool_member(
     except AviApiError as exc:
         console.print(
             f"[red]Failed to {action} pool member '{server_ip}' in '{pool_name}'. The "
-            "member was not changed — run pool_members to confirm its current state "
+            "member was not changed — run list_lb_pool_members to confirm its current state "
             f"before retrying. Cause: {exc}[/red]"
         )
         raise SystemExit(1) from None

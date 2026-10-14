@@ -21,7 +21,7 @@ Complete installation, configuration, and AI platform integration guide for the 
 ### Standard Install (recommended)
 
 ```bash
-uv tool install vmware-avi==1.11.0
+uv tool install vmware-avi==2.0.0
 ```
 
 This installs the CLI (`vmware-avi`, with `vmware-avi mcp` subcommand for the MCP server in v1.5.15+), the legacy `vmware-avi-mcp` entry point (for backward compatibility), and all Python dependencies in an isolated environment.
@@ -29,7 +29,7 @@ This installs the CLI (`vmware-avi`, with `vmware-avi mcp` subcommand for the MC
 ### Development Install
 
 ```bash
-git clone --branch v1.11.0 https://github.com/vmware-skills/VMware-AVI.git
+git clone --branch v2.0.0 https://github.com/vmware-skills/VMware-AVI.git
 cd VMware-AVI
 uv pip install -e ".[dev]"
 ```
@@ -43,7 +43,7 @@ For platforms that prefer containerized MCP servers (e.g., Smithery registry, Ku
 Build and run the MCP server in a container. The image uses `python:3.12-slim` with `uv` for dependency installation and runs `python -m vmware_avi.mcp_server` on stdio (no port exposed — MCP uses stdin/stdout).
 
 ```bash
-git clone --branch v1.11.0 https://github.com/vmware-skills/VMware-AVI.git
+git clone --branch v2.0.0 https://github.com/vmware-skills/VMware-AVI.git
 cd VMware-AVI
 
 # Build
@@ -72,7 +72,7 @@ Users can install via the Smithery UI or CLI without managing Python environment
 
 | Deployment | Best For |
 |------------|----------|
-| `uv tool install vmware-avi==1.11.0` + `vmware-avi mcp` | Local developer workstation, single-user CLI + MCP |
+| `uv tool install vmware-avi==2.0.0` + `vmware-avi mcp` | Local developer workstation, single-user CLI + MCP |
 | Docker image | Self-hosted agents, CI runners, isolated environments, multi-user servers |
 | Smithery | Zero-install agent integration, registry-managed discovery, hosted-MCP workflows |
 
@@ -233,13 +233,13 @@ All operations (CLI and MCP) are recorded via vmware-policy:
 
 ### Policy Rules
 
-Optional deny rules and maintenance windows can be configured in `~/.vmware/rules.yaml` (managed by vmware-policy). Example: block `vs_toggle` disable during business hours.
+Optional deny rules and maintenance windows can be configured in `~/.vmware/rules.yaml` (managed by vmware-policy). Example: block `set_virtual_service_enabled` disable during business hours.
 
 ### Destructive Operation Safety
 
 | Operation | Safety Measures |
 |-----------|----------------|
-| VS disable | CLI: double confirmation prompt. MCP `vs_toggle`: previews `blast_radius` unless `confirm=true` |
+| VS disable | CLI: double confirmation prompt. MCP `set_virtual_service_enabled`: previews `blast_radius` unless `confirm=true` |
 | Pool member disable | CLI: double confirmation prompt (graceful drain). MCP: previews unless `confirm=true`; refuses the pool's only enabled member |
 | AKO restart | CLI: double confirmation prompt. MCP: previews unless `confirm=true`; refuses a terminating pod |
 | AKO config upgrade | CLI: defaults to `--dry-run`; double confirmation for actual apply. MCP: previews (with `helm --dry-run` output) unless `confirm=true`; refuses a failing dry-run |

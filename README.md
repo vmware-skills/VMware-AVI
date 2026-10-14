@@ -362,16 +362,16 @@ vmware-avi-mcp
 
 | Category | Tools |
 |----------|-------|
-| Virtual Service (3) | `vs_list`, `vs_status`, `vs_toggle` |
-| Pool Member (4) | `pool_list`, `pool_members`, `pool_member_enable`, `pool_member_disable` |
-| SSL Certificate (2) | `ssl_list`, `ssl_expiry_check` |
-| Analytics (2) | `vs_analytics`, `vs_error_logs` |
-| Service Engine (2) | `se_list`, `se_health` |
-| AKO Pod (4) | `ako_status`, `ako_logs`, `ako_restart`, `ako_version` |
-| AKO Config (3) | `ako_config_show`, `ako_config_diff`, `ako_config_upgrade` |
-| Ingress Diagnostics (3) | `ako_ingress_check`, `ako_ingress_map`, `ako_ingress_diagnose` |
-| Sync Diagnostics (3) | `ako_sync_status`, `ako_sync_diff`, `ako_sync_force` |
-| Multi-cluster (2) | `ako_clusters`, `ako_amko_status` |
+| Virtual Service (3) | `list_virtual_services`, `get_virtual_service_status`, `set_virtual_service_enabled` |
+| Pool Member (4) | `list_lb_pools`, `list_lb_pool_members`, `enable_lb_pool_member`, `disable_lb_pool_member` |
+| SSL Certificate (2) | `list_ssl_certs`, `check_ssl_cert_expiry` |
+| Analytics (2) | `get_virtual_service_analytics`, `get_virtual_service_error_logs` |
+| Service Engine (2) | `list_service_engines`, `get_service_engine_health` |
+| AKO Pod (4) | `get_ako_status`, `get_ako_logs`, `restart_ako`, `get_ako_version` |
+| AKO Config (3) | `get_ako_config`, `diff_ako_config`, `upgrade_ako_config` |
+| Ingress Diagnostics (3) | `check_ako_ingress`, `list_ako_ingresses`, `diagnose_ako_ingress` |
+| Sync Diagnostics (3) | `get_ako_sync_status`, `diff_ako_sync`, `force_ako_sync` |
+| Multi-cluster (2) | `list_ako_clusters`, `get_ako_amko_status` |
 
 ---
 
@@ -486,7 +486,7 @@ Force resync triggers AKO to re-reconcile all K8s objects. If the drift persists
 |---------|---------|
 | **Double Confirmation** | Destructive ops (VS disable, pool member disable, AKO restart, Helm upgrade, force resync) require 2 sequential confirmations |
 | **Dry-Run Default** | `ako config upgrade` defaults to `--dry-run` mode -- user must explicitly confirm to apply |
-| **MCP Blast Radius** | `vs_toggle`, `pool_member_disable`, `ako_restart`, `ako_sync_force` and `ako_config_upgrade` take `confirm` (default `false`): a call without `confirm=true` returns `blast_radius` (what would change: VS/pool and member counts, the AKO pod and its Ingresses, the Helm release and chart move) and changes nothing. `confirm=true` is refused on a blocker (the pool's only enabled member, a terminating AKO pod, a failing `helm --dry-run`) or an unreadable field. `confirmed` / `dry_run` are deprecated aliases |
+| **MCP Blast Radius** | `set_virtual_service_enabled`, `disable_lb_pool_member`, `restart_ako`, `force_ako_sync` and `upgrade_ako_config` take `confirm` (default `false`): a call without `confirm=true` returns `blast_radius` (what would change: VS/pool and member counts, the AKO pod and its Ingresses, the Helm release and chart move) and changes nothing. `confirm=true` is refused on a blocker (the pool's only enabled member, a terminating AKO pod, a failing `helm --dry-run`) or an unreadable field. `confirmed` / `dry_run` are deprecated aliases |
 | **Audit Trail** | All operations logged to `~/.vmware/audit.db` via vmware-policy (`@vmware_tool` decorator) |
 | **Password Protection** | `.env` file loading with permission check; never in shell history |
 | **SSL Support** | `verify_ssl: false` for self-signed certs in isolated lab environments only |

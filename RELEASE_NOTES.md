@@ -1,3 +1,50 @@
+## v2.0.0 — MCP tools renamed verb-first
+
+Every MCP tool in the VMware skill family now follows one naming convention: the verb comes first
+(`list_…`, `get_…`, `diff_…`, `force_…`), followed by what it acts on. Where two skills would otherwise
+expose the same name, the tool carries a domain word — AVI's pools are `lb_` pools because vmware-vdi
+has desktop pools, and `vs_` / `se_` are spelled out as `virtual_service` / `service_engine`.
+All 28 tools in this skill are renamed. Parameters, annotations, the HLD §7 confirm gate
+(`confirm` / deprecated `confirmed` / `dry_run`), the `sensitive_result` declarations on the helm
+tools and behaviour are unchanged; only the names move.
+
+| Old name | New name |
+|---|---|
+| `ako_amko_status` | `get_ako_amko_status` |
+| `ako_clusters` | `list_ako_clusters` |
+| `ako_config_diff` | `diff_ako_config` |
+| `ako_config_show` | `get_ako_config` |
+| `ako_config_upgrade` | `upgrade_ako_config` |
+| `ako_ingress_check` | `check_ako_ingress` |
+| `ako_ingress_diagnose` | `diagnose_ako_ingress` |
+| `ako_ingress_map` | `list_ako_ingresses` |
+| `ako_logs` | `get_ako_logs` |
+| `ako_restart` | `restart_ako` |
+| `ako_status` | `get_ako_status` |
+| `ako_sync_diff` | `diff_ako_sync` |
+| `ako_sync_force` | `force_ako_sync` |
+| `ako_sync_status` | `get_ako_sync_status` |
+| `ako_version` | `get_ako_version` |
+| `pool_list` | `list_lb_pools` |
+| `pool_member_disable` | `disable_lb_pool_member` |
+| `pool_member_enable` | `enable_lb_pool_member` |
+| `pool_members` | `list_lb_pool_members` |
+| `se_health` | `get_service_engine_health` |
+| `se_list` | `list_service_engines` |
+| `ssl_expiry_check` | `check_ssl_cert_expiry` |
+| `ssl_list` | `list_ssl_certs` |
+| `vs_analytics` | `get_virtual_service_analytics` |
+| `vs_error_logs` | `get_virtual_service_error_logs` |
+| `vs_list` | `list_virtual_services` |
+| `vs_status` | `get_virtual_service_status` |
+| `vs_toggle` | `set_virtual_service_enabled` |
+
+**CLI commands are unchanged** (`vmware-avi vs list`, `vmware-avi ako restart`, …). Their audit rows
+record the MCP twin's name, so those rows now carry the new names.
+
+**Deny rules** in `~/.vmware/rules.yaml` written with old names keep working with vmware-policy ≥ 1.18.0
+(it matches both names); `vmware-audit policy` lists any rule that now matches more.
+
 ## v1.11.0 — the MCP instructions name the configured targets
 
 `initialize` hands the client this server's `instructions`, and for a skill whose every tool takes a target that

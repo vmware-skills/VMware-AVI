@@ -19,35 +19,35 @@ EXPECTED_TOOL_COUNT = 28
 
 EXPECTED_TOOL_NAMES = {
     # Traditional mode
-    "vs_list",
-    "vs_status",
-    "vs_toggle",
-    "pool_list",
-    "pool_members",
-    "pool_member_enable",
-    "pool_member_disable",
-    "ssl_list",
-    "ssl_expiry_check",
-    "vs_analytics",
-    "vs_error_logs",
-    "se_list",
-    "se_health",
+    "list_virtual_services",
+    "get_virtual_service_status",
+    "set_virtual_service_enabled",
+    "list_lb_pools",
+    "list_lb_pool_members",
+    "enable_lb_pool_member",
+    "disable_lb_pool_member",
+    "list_ssl_certs",
+    "check_ssl_cert_expiry",
+    "get_virtual_service_analytics",
+    "get_virtual_service_error_logs",
+    "list_service_engines",
+    "get_service_engine_health",
     # AKO mode
-    "ako_status",
-    "ako_logs",
-    "ako_restart",
-    "ako_version",
-    "ako_config_show",
-    "ako_config_diff",
-    "ako_config_upgrade",
-    "ako_ingress_check",
-    "ako_ingress_map",
-    "ako_ingress_diagnose",
-    "ako_sync_status",
-    "ako_sync_diff",
-    "ako_sync_force",
-    "ako_clusters",
-    "ako_amko_status",
+    "get_ako_status",
+    "get_ako_logs",
+    "restart_ako",
+    "get_ako_version",
+    "get_ako_config",
+    "diff_ako_config",
+    "upgrade_ako_config",
+    "check_ako_ingress",
+    "list_ako_ingresses",
+    "diagnose_ako_ingress",
+    "get_ako_sync_status",
+    "diff_ako_sync",
+    "force_ako_sync",
+    "list_ako_clusters",
+    "get_ako_amko_status",
 }
 
 
@@ -88,7 +88,7 @@ class TestMcpToolRegistration:
             )
 
     def test_destructive_tools_marked(self) -> None:
-        destructive = {"ako_restart", "ako_sync_force", "ako_config_upgrade"}
+        destructive = {"restart_ako", "force_ako_sync", "upgrade_ako_config"}
         for tool in TOOLS:
             if tool.name in destructive:
                 assert "destructive" in tool.description.lower() or True, (
@@ -138,6 +138,6 @@ class TestSkillMdParity:
         assert int(m.group(1)) == len(TOOLS)
 
     def test_ako_logs_has_context_param(self) -> None:
-        """Fix #11 — MCP ako_logs must expose `context` like the CLI does."""
-        tool = next(t for t in TOOLS if t.name == "ako_logs")
+        """Fix #11 — MCP get_ako_logs must expose `context` like the CLI does."""
+        tool = next(t for t in TOOLS if t.name == "get_ako_logs")
         assert "context" in tool.inputSchema.get("properties", {})

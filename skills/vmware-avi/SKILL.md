@@ -53,7 +53,7 @@ AVI (NSX Advanced Load Balancer) application delivery and AKO Kubernetes operati
 ## Quick Install
 
 ```bash
-uv tool install vmware-avi==1.11.0
+uv tool install vmware-avi==2.0.0
 vmware-avi doctor            # checks Controller connectivity + kubeconfig + avisdk
 ```
 
@@ -143,23 +143,23 @@ vmware-avi doctor            # checks Controller connectivity + kubeconfig + avi
 
 | Category | Tools | R/W |
 |----------|-------|:---:|
-| Virtual Service (3) | `vs_list`, `vs_status` | Read |
-| | `vs_toggle` | Write |
-| Pool Member (4) | `pool_list`, `pool_members` | Read |
-| | `pool_member_enable`, `pool_member_disable` | Write |
-| SSL Certificate (2) | `ssl_list`, `ssl_expiry_check` | Read |
-| Analytics (2) | `vs_analytics`, `vs_error_logs` | Read |
-| Service Engine (2) | `se_list`, `se_health` | Read |
-| AKO Pod (4) | `ako_status`, `ako_logs`, `ako_version` | Read |
-| | `ako_restart` | Write |
-| AKO Config (3) | `ako_config_show`, `ako_config_diff` | Read |
-| | `ako_config_upgrade` | Write |
-| Ingress Diagnostics (3) | `ako_ingress_check`, `ako_ingress_map`, `ako_ingress_diagnose` | Read |
-| Sync Diagnostics (3) | `ako_sync_status`, `ako_sync_diff` | Read |
-| | `ako_sync_force` | Write |
-| Multi-cluster (2) | `ako_clusters`, `ako_amko_status` | Read |
+| Virtual Service (3) | `list_virtual_services`, `get_virtual_service_status` | Read |
+| | `set_virtual_service_enabled` | Write |
+| Pool Member (4) | `list_lb_pools`, `list_lb_pool_members` | Read |
+| | `enable_lb_pool_member`, `disable_lb_pool_member` | Write |
+| SSL Certificate (2) | `list_ssl_certs`, `check_ssl_cert_expiry` | Read |
+| Analytics (2) | `get_virtual_service_analytics`, `get_virtual_service_error_logs` | Read |
+| Service Engine (2) | `list_service_engines`, `get_service_engine_health` | Read |
+| AKO Pod (4) | `get_ako_status`, `get_ako_logs`, `get_ako_version` | Read |
+| | `restart_ako` | Write |
+| AKO Config (3) | `get_ako_config`, `diff_ako_config` | Read |
+| | `upgrade_ako_config` | Write |
+| Ingress Diagnostics (3) | `check_ako_ingress`, `list_ako_ingresses`, `diagnose_ako_ingress` | Read |
+| Sync Diagnostics (3) | `get_ako_sync_status`, `diff_ako_sync` | Read |
+| | `force_ako_sync` | Write |
+| Multi-cluster (2) | `list_ako_clusters`, `get_ako_amko_status` | Read |
 
-**Read/write split**: 22 tools are read-only, 6 modify state, all audit-logged. Five of them (`vs_toggle`, `pool_member_disable`, `ako_restart`, `ako_sync_force`, `ako_config_upgrade`) take `confirm` (default `false`): a bare call returns a `blast_radius` and changes nothing.
+**Read/write split**: 22 tools are read-only, 6 modify state, all audit-logged. Five of them (`set_virtual_service_enabled`, `disable_lb_pool_member`, `restart_ako`, `force_ako_sync`, `upgrade_ako_config`) take `confirm` (default `false`): a bare call returns a `blast_radius` and changes nothing.
 
 ## CLI Quick Reference
 
@@ -235,7 +235,7 @@ Force resync triggers AKO to re-reconcile all K8s objects. If the drift persists
 ## Setup
 
 ```bash
-uv tool install vmware-avi==1.11.0
+uv tool install vmware-avi==2.0.0
 mkdir -p ~/.vmware-avi
 vmware-avi init              # generates config.yaml and .env templates
 chmod 600 ~/.vmware-avi/.env
@@ -254,7 +254,7 @@ All operations are automatically audited via vmware-policy (`@vmware_tool` decor
 - Every tool call logged to `~/.vmware/audit.db` (SQLite, framework-agnostic)
 - Policy rules enforced via `~/.vmware/rules.yaml` (deny rules, maintenance windows, risk levels)
 - Each controller may declare `environment:` in `config.yaml` (`production` / `staging` / `lab`) as an optional label; an environment-scoped `deny` rule in `~/.vmware/rules.yaml` can match on it to block writes (e.g. freeze `production`). A controller with no label is simply not matched by such a rule. Reads are never affected
-- MCP: `vs_toggle`, `pool_member_disable`, `ako_restart`, `ako_sync_force` and `ako_config_upgrade` preview by default. Without `confirm=true` they return `blast_radius` — the VS or pool with its member counts, the AKO pod and the Ingresses it programs, or the Helm release and the chart it would move to — and change nothing. Show it to the user; do not pass `confirm=true` on your own because they asked earlier. `confirm=true` is refused when a blocker is found (the pool's only enabled member, a terminating AKO pod, a failing `helm upgrade --dry-run`) or a field could not be read. `confirmed` and `dry_run` are deprecated aliases
+- MCP: `set_virtual_service_enabled`, `disable_lb_pool_member`, `restart_ako`, `force_ako_sync` and `upgrade_ako_config` preview by default. Without `confirm=true` they return `blast_radius` — the VS or pool with its member counts, the AKO pod and the Ingresses it programs, or the Helm release and the chart it would move to — and change nothing. Show it to the user; do not pass `confirm=true` on your own because they asked earlier. `confirm=true` is refused when a blocker is found (the pool's only enabled member, a terminating AKO pod, a failing `helm upgrade --dry-run`) or a field could not be read. `confirmed` and `dry_run` are deprecated aliases
 - CLI: destructive commands require double confirmation; `vmware-avi ako config upgrade` defaults to `--dry-run`
 - View recent operations: `vmware-audit log --last 20`
 

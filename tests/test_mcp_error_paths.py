@@ -69,13 +69,13 @@ def test_failure_preserves_the_teaching_text(op):
     def failing():
         console.print(  # noqa: F821
             "[red]Virtual Service 'web-01' not found. "
-            "Run vs_list to see available Virtual Services.[/red]"
+            "Run list_virtual_services to see available Virtual Services.[/red]"
         )
         raise SystemExit(1)
 
     out = srv._capture_output(op(failing))
     assert "web-01" in out
-    assert "vs_list" in out
+    assert "list_virtual_services" in out
 
 
 def test_failure_names_something_to_act_on_even_when_the_op_did_not(op):
@@ -134,9 +134,9 @@ def audit_rows(monkeypatch):
 
 
 def _run_vs_list_with(monkeypatch, body) -> str:
-    """Drive the real ``vs_list`` tool — decorators and all — over ``body``.
+    """Drive the real ``list_virtual_services`` tool — decorators and all — over ``body``.
 
-    ``vs_list`` imports its ops function inside the tool body, so replacing the
+    ``list_virtual_services`` imports its ops function inside the tool body, so replacing the
     attribute on the ops module is what the tool will pick up. Going through the
     registered tool rather than calling ``_capture_output`` directly is the
     point: the audited status is produced by the ``@vmware_tool`` wrapper, and a
@@ -155,7 +155,7 @@ def _run_vs_list_with(monkeypatch, body) -> str:
 
     monkeypatch.setattr(sys.modules[__name__], "console", Console(), raising=False)
     monkeypatch.setattr(vs_mgmt, "list_virtual_services", body, raising=True)
-    return srv.vs_list()
+    return srv.list_virtual_services()
 
 
 def test_a_returned_failure_is_audited_as_a_failure(monkeypatch, audit_rows):
@@ -164,7 +164,7 @@ def test_a_returned_failure_is_audited_as_a_failure(monkeypatch, audit_rows):
     ``@vmware_tool`` marks a call failed when an exception reaches it or when a
     dict payload carries a truthy ``error`` key. Every tool here returns a
     *string*, so a caught failure returned normally and was audited ``ok`` — for
-    ``vs_toggle`` and ``ako_restart`` that is an audit row claiming a Virtual
+    ``set_virtual_service_enabled`` and ``restart_ako`` that is an audit row claiming a Virtual
     Service was disabled when it was not. It also handed vmware-pilot an undo
     token for a change that never landed and told the circuit breaker the call
     succeeded, so repeated failures never tripped it.

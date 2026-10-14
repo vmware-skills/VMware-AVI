@@ -55,7 +55,7 @@ def resolve_confirm(
     Args:
         confirm: The new parameter; only ``True`` acts.
         confirmed: Legacy alias; ``None`` means it was not passed.
-        dry_run: Legacy alias (ako_config_upgrade only); ``None`` = not passed.
+        dry_run: Legacy alias (upgrade_ako_config only); ``None`` = not passed.
         legacy_needs_dry_run_false: The tool's old contract acted only on
             ``confirmed=True`` *and* ``dry_run=False`` (its dry_run defaulted
             to True), so ``confirmed=True`` alone is not an old-style "act".

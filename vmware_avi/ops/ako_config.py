@@ -189,7 +189,7 @@ def upgrade_ako(
     if result.returncode != 0:
         _print_helm_failure(
             f"[red]Helm upgrade failed for AKO release '{release}'. The release was not "
-            "changed. Preview the change first with ako_config_diff, and pin "
+            "changed. Preview the change first with diff_ako_config, and pin "
             "chart_version so preview and apply target one chart. Cause:[/red]",
             result.stderr,
         )

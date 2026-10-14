@@ -2,7 +2,7 @@
 
 Real-hardware review finding, 2026-08-30.
 
-The previous release declared ``ako_config_diff`` and ``ako_config_upgrade``
+The previous release declared ``diff_ako_config`` and ``upgrade_ako_config``
 ``sensitive_result=True``, which keeps their output out of ``~/.vmware/audit.db``.
 Both then called ``print_external(...)`` on the raw helm output, and in MCP mode
 that print *is* the tool result: the whole point of ``_capture_output`` is that

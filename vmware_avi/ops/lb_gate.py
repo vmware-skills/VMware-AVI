@@ -1,4 +1,5 @@
-"""The blast-radius gate in front of vs_toggle and pool_member_disable (HLD §7).
+"""The blast-radius gate in front of set_virtual_service_enabled and
+disable_lb_pool_member (HLD §7).
 
 ``vs_mgmt.toggle_vs`` and ``pool_mgmt.toggle_pool_member`` stay the one write
 path, shared by the CLI and the MCP tools. This module is what the MCP tools
@@ -33,7 +34,10 @@ from vmware_avi.ops.write_gate import (
     refusal,
 )
 
-_READ_NEXT = "Check the object on the Controller (vs_status / pool_members) and retry."
+_READ_NEXT = (
+    "Check the object on the Controller (get_virtual_service_status / "
+    "list_lb_pool_members) and retry."
+)
 
 
 def _connect() -> Any:
@@ -120,7 +124,7 @@ def measure_vs(session: Any, name: str, enable: bool) -> tuple[dict, dict]:
     vs = session.get_object_by_name("virtualservice", name)
     if not vs:
         raise ValueError(
-            f"Virtual Service '{name}' not found on this Controller. Run vs_list "
+            f"Virtual Service '{name}' not found on this Controller. Run list_virtual_services "
             "to see available Virtual Services and copy an exact name."
         )
     uuid = vs.get("uuid") or None
@@ -176,7 +180,10 @@ def vs_toggle(name: str, enable: bool, *, act: bool, apply: Callable[[], str]) -
     if not act:
         return preview(radius, PREVIEW_HINT)
     reason = refusal(
-        "vs_toggle", f"Virtual Service '{radius['virtual_service']}'", radius, _READ_NEXT
+        "set_virtual_service_enabled",
+        f"Virtual Service '{radius['virtual_service']}'",
+        radius,
+        _READ_NEXT,
     )
     if reason:
         raise GateRefusedError(reason, radius)
@@ -191,7 +198,7 @@ def measure_member(session: Any, pool: str, server: str) -> dict:
     obj = session.get_object_by_name("pool", pool)
     if not obj:
         raise ValueError(
-            f"Pool '{pool}' not found on this Controller. Run pool_list to see "
+            f"Pool '{pool}' not found on this Controller. Run list_lb_pools to see "
             "available pools and copy an exact name."
         )
     servers = obj.get("servers")
@@ -202,7 +209,7 @@ def measure_member(session: Any, pool: str, server: str) -> dict:
     matches = [i for i, s in enumerate(servers) if (s.get("ip") or {}).get("addr") == server]
     if not matches and not unmeasured:
         raise ValueError(
-            f"Server '{server}' is not a member of pool '{pool}'. Run pool_members "
+            f"Server '{server}' is not a member of pool '{pool}'. Run list_lb_pool_members "
             "to list the member IPs and copy an exact one."
         )
     # Unread is not zero: without the server list every count is None, not 0.
@@ -219,7 +226,8 @@ def measure_member(session: Any, pool: str, server: str) -> dict:
         blockers.append(
             "It is the pool's only enabled member: draining it leaves the pool with no server "
             "and its Virtual Services with nothing to send traffic to. Enable another member "
-            "first (pool_member_enable), or take the service out on purpose with vs_toggle."
+            "first (enable_lb_pool_member), or take the service out on purpose with "
+            "set_virtual_service_enabled."
         )
     radius = {
         "pool": sanitize(obj.get("name", pool)),
@@ -256,7 +264,7 @@ def pool_member_disable(pool: str, server: str, *, act: bool, apply: Callable[[]
     if not act:
         return preview(radius, PREVIEW_HINT)
     reason = refusal(
-        "pool_member_disable", f"member {server} of pool '{radius['pool']}'", radius, _READ_NEXT
+        "disable_lb_pool_member", f"member {server} of pool '{radius['pool']}'", radius, _READ_NEXT
     )
     if reason:
         raise GateRefusedError(reason, radius)

@@ -1,7 +1,7 @@
 """The blast-radius gate in front of the AKO writes (HLD §7).
 
-``ako_restart`` and ``ako_sync_force`` both delete the AKO pod (its
-StatefulSet recreates it); ``ako_config_upgrade`` runs ``helm upgrade``. This
+``restart_ako`` and ``force_ako_sync`` both delete the AKO pod (its
+StatefulSet recreates it); ``upgrade_ako_config`` runs ``helm upgrade``. This
 module measures first, with the reads ``ako_pod``, ``ako_sync`` and
 ``ako_config`` already make, and refuses on a blocker or an unreadable field.
 
@@ -38,7 +38,9 @@ UPGRADE_NAMESPACE = "avi-system"
 #: Characters of helm's dry-run output returned in the preview (as before).
 MAX_HELM_OUTPUT = 4000
 
-_POD_NEXT = "Check the AKO pod with ako_status and the cluster with ako_clusters, then retry."
+_POD_NEXT = (
+    "Check the AKO pod with get_ako_status and the cluster with list_ako_clusters, then retry."
+)
 
 
 def _read(fn: Callable[[], Any]) -> tuple[Any, bool]:
@@ -93,7 +95,7 @@ def measure_ako_pod(context: str | None, effect: str) -> dict:
     if terminating:
         blockers.append(
             f"The AKO pod {pod_name} is already terminating; deleting it again does nothing. "
-            "Wait for the replacement and check it with ako_status."
+            "Wait for the replacement and check it with get_ako_status."
         )
     radius = {
         "context": context or "(current kube-context)",
@@ -187,7 +189,7 @@ def measure_upgrade(chart_version: str) -> tuple[dict, str]:
         blockers.append(
             "helm upgrade --dry-run failed, so the real upgrade would fail too: "
             f"{sanitize(redact_text(dry.stderr or ''), 300)} Fix that first; "
-            "ako_config_diff shows the pending change."
+            "diff_ako_config shows the pending change."
         )
     if status.startswith("pending"):
         blockers.append(
@@ -218,7 +220,7 @@ def measure_upgrade(chart_version: str) -> tuple[dict, str]:
             **radius,
             "note": (
                 "chart_version is empty, so the registry's latest is resolved at apply time and "
-                "can differ from this preview. Pass the version from ako_version to pin it."
+                "can differ from this preview. Pass the version from get_ako_version to pin it."
             ),
         }
     return radius, sanitize(redact_text(dry.stdout or ""), MAX_HELM_OUTPUT)
@@ -230,7 +232,7 @@ def upgrade(chart_version: str, *, act: bool, apply: Callable[[], str]) -> dict:
     if not act:
         return {**preview(radius, PREVIEW_HINT), "helm_dry_run": dry_output}
     reason = refusal(
-        "ako_config_upgrade",
+        "upgrade_ako_config",
         f"AKO release '{radius['release']}'",
         radius,
         "Check it with helm list -n avi-system and retry.",

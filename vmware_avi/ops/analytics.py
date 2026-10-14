@@ -58,9 +58,9 @@ def show_analytics(vs_name: str) -> None:
     vs = session.get_object_by_name("virtualservice", vs_name)
     if not vs:
         console.print(
-            f"[red]Virtual Service '{vs_name}' not found on this Controller. Run vs_list "
-            "(CLI: vmware-avi vs list) to see available Virtual Services and copy an "
-            "exact name.[/red]"
+            f"[red]Virtual Service '{vs_name}' not found on this Controller. Run "
+            "list_virtual_services (CLI: vmware-avi vs list) to see available "
+            "Virtual Services and copy an exact name.[/red]"
         )
         raise SystemExit(1)
 
@@ -163,9 +163,9 @@ def show_error_logs(vs_name: str, since: str = "1h") -> None:
     vs = session.get_object_by_name("virtualservice", vs_name)
     if not vs:
         console.print(
-            f"[red]Virtual Service '{vs_name}' not found on this Controller. Run vs_list "
-            "(CLI: vmware-avi vs list) to see available Virtual Services and copy an "
-            "exact name.[/red]"
+            f"[red]Virtual Service '{vs_name}' not found on this Controller. Run "
+            "list_virtual_services (CLI: vmware-avi vs list) to see available "
+            "Virtual Services and copy an exact name.[/red]"
         )
         raise SystemExit(1)
 

@@ -1,4 +1,4 @@
-"""ako_restart, ako_sync_force and ako_config_upgrade behind the HLD §7 gate.
+"""restart_ako, force_ako_sync and upgrade_ako_config behind the HLD §7 gate.
 
 * L2 — a bare call previews: no pod is deleted, no real ``helm upgrade`` runs.
 * L1 — the blast radius names the pod (with its uid) and the Ingresses whose
@@ -24,7 +24,7 @@ import pytest
 from vmware_avi.mcp_server import server
 from vmware_avi.ops import ako_gate, ako_pod, ako_sync
 
-POD_TOOLS = ["ako_restart", "ako_sync_force"]
+POD_TOOLS = ["restart_ako", "force_ako_sync"]
 
 
 def _pod(uid: Any = "uid-1", terminating: bool = False) -> SimpleNamespace:
@@ -159,7 +159,7 @@ def test_no_ako_pod_teaches(cluster, tool):
     v1 = cluster()
     v1.list_namespaced_pod.return_value.items = []
     out = getattr(server, tool)(confirm=True)
-    assert "ako_clusters" in out["error"]
+    assert "list_ako_clusters" in out["error"]
     v1.delete_namespaced_pod.assert_not_called()
 
 
@@ -179,7 +179,7 @@ def test_legacy_confirmed_false_holds_against_confirm(cluster, tool):
     v1.delete_namespaced_pod.assert_not_called()
 
 
-# ─── ako_config_upgrade ───────────────────────────────────────────────────────
+# ─── upgrade_ako_config ───────────────────────────────────────────────────────
 
 
 RELEASE = {
@@ -223,7 +223,7 @@ def helm(monkeypatch):
 
 def test_upgrade_bare_call_previews_and_does_not_upgrade(helm):
     state = helm()
-    out = server.ako_config_upgrade(chart_version="1.12.1")
+    out = server.upgrade_ako_config(chart_version="1.12.1")
     assert out["action"] == "preview"
     assert state.applied == []
     assert all("--dry-run" in c for c in state.commands if c[1] == "upgrade")
@@ -231,7 +231,7 @@ def test_upgrade_bare_call_previews_and_does_not_upgrade(helm):
 
 def test_upgrade_preview_states_release_and_chart_move(helm):
     helm()
-    out = server.ako_config_upgrade(chart_version="1.12.1")
+    out = server.upgrade_ako_config(chart_version="1.12.1")
     br = out["blast_radius"]
     assert br["release"] == "ako-1712" and br["namespace"] == "avi-system"
     assert br["chart_now"] == "ako-1.11.1" and br["chart_to"] == "1.12.1"
@@ -243,14 +243,14 @@ def test_upgrade_preview_states_release_and_chart_move(helm):
 
 def test_upgrade_unpinned_chart_says_so(helm):
     helm()
-    br = server.ako_config_upgrade()["blast_radius"]
+    br = server.upgrade_ako_config()["blast_radius"]
     assert br["chart_to"] == "registry latest (unpinned)"
     assert "note" in br
 
 
 def test_upgrade_confirm_runs_the_executor_once(helm):
     state = helm()
-    out = server.ako_config_upgrade(confirm=True, chart_version="1.12.1")
+    out = server.upgrade_ako_config(confirm=True, chart_version="1.12.1")
     assert out["action"] == "upgraded"
     assert state.applied == [{"dry_run": False, "chart_version": "1.12.1", "skip_prompt": True}]
     assert out["blast_radius"]["chart_now"] == "ako-1.11.1"
@@ -258,21 +258,21 @@ def test_upgrade_confirm_runs_the_executor_once(helm):
 
 def test_upgrade_a_failing_dry_run_is_refused(helm):
     state = helm(dry_rc=1)
-    out = server.ako_config_upgrade(confirm=True)
+    out = server.upgrade_ako_config(confirm=True)
     assert state.applied == []
     assert "dry-run failed" in out["error"]
 
 
 def test_upgrade_a_release_mid_operation_is_refused(helm):
     state = helm(release={**RELEASE, "status": "pending-upgrade"})
-    out = server.ako_config_upgrade(confirm=True)
+    out = server.upgrade_ako_config(confirm=True)
     assert state.applied == []
     assert "pending-upgrade" in out["error"]
 
 
 def test_upgrade_a_release_without_status_is_refused(helm):
     state = helm(release={**RELEASE, "status": ""})
-    out = server.ako_config_upgrade(confirm=True)
+    out = server.upgrade_ako_config(confirm=True)
     assert state.applied == []
     assert "could not read status" in out["error"]
 
@@ -303,7 +303,7 @@ def test_upgrade_a_release_without_status_is_refused(helm):
 )
 def test_upgrade_legacy_aliases_are_read_conservatively(helm, kwargs, acts):
     state = helm()
-    out = server.ako_config_upgrade(**kwargs)
+    out = server.upgrade_ako_config(**kwargs)
     assert bool(state.applied) is acts
     assert out["action"] == ("upgraded" if acts else "preview")
     legacy = [k for k in ("confirmed", "dry_run") if k in kwargs]
@@ -312,7 +312,7 @@ def test_upgrade_legacy_aliases_are_read_conservatively(helm, kwargs, acts):
 
 
 def test_upgrade_schema():
-    tool = next(t for t in asyncio.run(server.mcp.list_tools()) if t.name == "ako_config_upgrade")
+    tool = next(t for t in asyncio.run(server.mcp.list_tools()) if t.name == "upgrade_ako_config")
     props = tool.inputSchema["properties"]
     assert props["confirm"]["default"] is False
     assert props["confirmed"]["default"] is None
@@ -334,6 +334,6 @@ def test_upgrade_a_failed_helm_upgrade_is_an_error_not_a_success(helm, monkeypat
         raise SystemExit(1)
 
     monkeypatch.setattr("vmware_avi.ops.ako_config.upgrade_ako", failing)
-    out = server.ako_config_upgrade(confirm=True)
+    out = server.upgrade_ako_config(confirm=True)
     assert "error" in out and "action" not in out
     assert out["blast_radius"]["release"] == "ako-1712"

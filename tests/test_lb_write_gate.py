@@ -1,4 +1,5 @@
-"""vs_toggle and pool_member_disable behind the HLD §7 gate (revised 2026-09-16).
+"""set_virtual_service_enabled and disable_lb_pool_member behind the HLD §7 gate
+(revised 2026-09-16).
 
 * L2 — a bare call previews and sends no PUT.
 * L1 — preview and acting response carry ``blast_radius``: the object's
@@ -149,23 +150,23 @@ def _unreadable() -> AviApiError:
     return AviApiError("HTTP 503 from the Controller", status_code=503, path="x")
 
 
-# ─── vs_toggle: L2 ────────────────────────────────────────────────────────────
+# ─── set_virtual_service_enabled: L2 ────────────────────────────────────────────────────────────
 
 
 @pytest.mark.parametrize("enable", [False, True])
 def test_vs_toggle_bare_call_previews_and_sends_no_put(controller, enable):
     ctrl = controller(vs=_vs(enabled=not enable))
-    out = server.vs_toggle("web-vs", enable)
+    out = server.set_virtual_service_enabled("web-vs", enable)
     assert out["action"] == "preview"
     assert ctrl.puts == []
 
 
-# ─── vs_toggle: L1 ────────────────────────────────────────────────────────────
+# ─── set_virtual_service_enabled: L1 ────────────────────────────────────────────────────────────
 
 
 def test_vs_toggle_preview_states_the_blast_radius(controller):
     controller()
-    br = server.vs_toggle("web-vs", False)["blast_radius"]
+    br = server.set_virtual_service_enabled("web-vs", False)["blast_radius"]
     assert br["virtual_service"] == "web-vs"
     assert br["uuid"] == VS_UUID
     assert br["enabled"] is True and br["enabled_after"] is False
@@ -180,7 +181,7 @@ def test_vs_toggle_preview_states_the_blast_radius(controller):
 
 def test_vs_toggle_confirm_disables_once_and_reports_what(controller):
     ctrl = controller()
-    out = server.vs_toggle("web-vs", False, confirm=True)
+    out = server.set_virtual_service_enabled("web-vs", False, confirm=True)
     assert out["action"] == "disabled"
     assert out["blast_radius"]["pool_count"] == 2
     ((path, body),) = ctrl.puts
@@ -191,25 +192,26 @@ def test_vs_toggle_confirm_disables_once_and_reports_what(controller):
 
 def test_vs_toggle_confirm_enables(controller):
     ctrl = controller(vs=_vs(enabled=False))
-    out = server.vs_toggle("web-vs", True, confirm=True)
+    out = server.set_virtual_service_enabled("web-vs", True, confirm=True)
     assert out["action"] == "enabled"
     assert ctrl.puts[0][1]["enabled"] is True
 
 
 def test_vs_toggle_already_in_target_state_is_a_noop(controller):
     ctrl = controller(vs=_vs(enabled=False))
-    out = server.vs_toggle("web-vs", False, confirm=True)
+    out = server.set_virtual_service_enabled("web-vs", False, confirm=True)
     assert out["action"] == "noop"
     assert ctrl.puts == []
 
 
-# ─── vs_toggle: L3 ────────────────────────────────────────────────────────────
+# ─── set_virtual_service_enabled: L3 ────────────────────────────────────────────────────────────
 
 
 def test_vs_toggle_unreadable_inventory_is_unmeasured_and_refused(controller):
     ctrl = controller(inventory=_unreadable())
-    assert "pools" in server.vs_toggle("web-vs", False)["blast_radius"]["unmeasured"]
-    out = server.vs_toggle("web-vs", False, confirm=True)
+    preview = server.set_virtual_service_enabled("web-vs", False)
+    assert "pools" in preview["blast_radius"]["unmeasured"]
+    out = server.set_virtual_service_enabled("web-vs", False, confirm=True)
     assert ctrl.puts == []
     assert "could not read pools" in out["error"]
     assert out["blast_radius"]["unmeasured"] == ["pools"]
@@ -217,35 +219,35 @@ def test_vs_toggle_unreadable_inventory_is_unmeasured_and_refused(controller):
 
 def test_vs_toggle_unreadable_pool_collection_is_refused(controller):
     ctrl = controller(pools=_unreadable())
-    out = server.vs_toggle("web-vs", False, confirm=True)
+    out = server.set_virtual_service_enabled("web-vs", False, confirm=True)
     assert ctrl.puts == []
     assert "could not read pools" in out["error"]
 
 
 def test_vs_toggle_a_pool_group_that_is_not_there_is_refused(controller):
     ctrl = controller(groups=[])
-    out = server.vs_toggle("web-vs", False, confirm=True)
+    out = server.set_virtual_service_enabled("web-vs", False, confirm=True)
     assert ctrl.puts == []
     assert "pools" in out["error"]
 
 
 def test_vs_toggle_a_vs_without_uuid_is_refused(controller):
     ctrl = controller(vs=_vs(uuid=None))
-    out = server.vs_toggle("web-vs", False, confirm=True)
+    out = server.set_virtual_service_enabled("web-vs", False, confirm=True)
     assert ctrl.puts == []
     assert "uuid" in out["error"]
 
 
 def test_vs_toggle_unknown_name_teaches(controller):
     ctrl = controller()
-    out = server.vs_toggle("nope", False, confirm=True)
-    assert "vs_list" in out["error"]
+    out = server.set_virtual_service_enabled("nope", False, confirm=True)
+    assert "list_virtual_services" in out["error"]
     assert ctrl.puts == []
 
 
 def test_vs_toggle_refusal_is_audited_as_a_failure(controller, audit_rows):
     controller(inventory=_unreadable())
-    server.vs_toggle("web-vs", False, confirm=True)
+    server.set_virtual_service_enabled("web-vs", False, confirm=True)
     assert audit_rows and audit_rows[0]["status"].startswith("error")
 
 
@@ -256,16 +258,16 @@ def test_vs_toggle_failed_put_is_an_error_not_a_success(controller, monkeypatch)
         raise AviApiError("HTTP 409", status_code=409, path="virtualservice/x")
 
     monkeypatch.setattr(vs_mgmt, "api_put", boom)
-    out = server.vs_toggle("web-vs", False, confirm=True)
+    out = server.set_virtual_service_enabled("web-vs", False, confirm=True)
     assert "was not changed" in out["error"]
 
 
-# ─── vs_toggle: legacy alias ──────────────────────────────────────────────────
+# ─── set_virtual_service_enabled: legacy alias ──────────────────────────────────────────────────
 
 
 def test_vs_toggle_confirmed_true_still_acts_and_says_it_is_deprecated(controller):
     ctrl = controller()
-    out = server.vs_toggle("web-vs", False, confirmed=True)
+    out = server.set_virtual_service_enabled("web-vs", False, confirmed=True)
     assert out["action"] == "disabled"
     assert len(ctrl.puts) == 1
     assert "confirmed is deprecated; use confirm" in out["deprecated"]
@@ -273,7 +275,7 @@ def test_vs_toggle_confirmed_true_still_acts_and_says_it_is_deprecated(controlle
 
 def test_vs_toggle_explicit_confirmed_false_holds_even_with_confirm(controller):
     ctrl = controller()
-    out = server.vs_toggle("web-vs", False, confirm=True, confirmed=False)
+    out = server.set_virtual_service_enabled("web-vs", False, confirm=True, confirmed=False)
     assert out["action"] == "preview"
     assert ctrl.puts == []
     assert "deprecated" in out
@@ -281,7 +283,7 @@ def test_vs_toggle_explicit_confirmed_false_holds_even_with_confirm(controller):
 
 def test_vs_toggle_no_alias_means_no_deprecation_note(controller):
     controller()
-    assert "deprecated" not in server.vs_toggle("web-vs", False)
+    assert "deprecated" not in server.set_virtual_service_enabled("web-vs", False)
 
 
 def test_vs_toggle_undo_is_recorded_only_for_a_change(controller, monkeypatch):
@@ -294,26 +296,26 @@ def test_vs_toggle_undo_is_recorded_only_for_a_change(controller, monkeypatch):
 
     monkeypatch.setattr("vmware_policy.undo.get_undo_store", lambda: _Store())
     controller()
-    server.vs_toggle("web-vs", False)
+    server.set_virtual_service_enabled("web-vs", False)
     assert rows == [], "a preview changed nothing"
-    server.vs_toggle("web-vs", False, confirm=True)
+    server.set_virtual_service_enabled("web-vs", False, confirm=True)
     (row,) = rows
     assert row["undo_descriptor"]["params"] == {"name": "web-vs", "enable": True, "confirm": True}
 
 
-# ─── pool_member_disable ──────────────────────────────────────────────────────
+# ─── disable_lb_pool_member ──────────────────────────────────────────────────────
 
 
 def test_pool_member_disable_bare_call_previews_and_sends_no_put(controller):
     ctrl = controller()
-    out = server.pool_member_disable("web-pool", "10.1.0.1")
+    out = server.disable_lb_pool_member("web-pool", "10.1.0.1")
     assert out["action"] == "preview"
     assert ctrl.puts == []
 
 
 def test_pool_member_disable_preview_states_the_blast_radius(controller):
     controller()
-    br = server.pool_member_disable("web-pool", "10.1.0.1")["blast_radius"]
+    br = server.disable_lb_pool_member("web-pool", "10.1.0.1")["blast_radius"]
     assert br["pool"] == "web-pool" and br["uuid"] == P1
     assert br["member"] == {"ip": "10.1.0.1", "port": 80, "enabled": True, "ratio": 1}
     assert br["member_count"] == 3
@@ -324,7 +326,7 @@ def test_pool_member_disable_preview_states_the_blast_radius(controller):
 
 def test_pool_member_disable_confirm_drains_exactly_that_member(controller):
     ctrl = controller()
-    out = server.pool_member_disable("web-pool", "10.1.0.1", confirm=True)
+    out = server.disable_lb_pool_member("web-pool", "10.1.0.1", confirm=True)
     assert out["action"] == "drained"
     ((path, body),) = ctrl.puts
     assert path == f"pool/{P1}"
@@ -333,9 +335,9 @@ def test_pool_member_disable_confirm_drains_exactly_that_member(controller):
 
 def test_pool_member_disable_last_enabled_member_is_refused(controller):
     ctrl = controller(pool=_pool(servers=_servers(True, False)))
-    preview = server.pool_member_disable("web-pool", "10.1.0.1")
+    preview = server.disable_lb_pool_member("web-pool", "10.1.0.1")
     assert preview["blast_radius"]["blockers"]
-    out = server.pool_member_disable("web-pool", "10.1.0.1", confirm=True)
+    out = server.disable_lb_pool_member("web-pool", "10.1.0.1", confirm=True)
     assert ctrl.puts == []
     assert "only enabled member" in out["error"]
 
@@ -343,14 +345,14 @@ def test_pool_member_disable_last_enabled_member_is_refused(controller):
 def test_pool_member_disable_an_ambiguous_ip_is_refused(controller):
     servers = [{"ip": {"addr": "10.1.0.1"}, "port": p, "enabled": True} for p in (80, 8080)]
     ctrl = controller(pool=_pool(servers=servers))
-    out = server.pool_member_disable("web-pool", "10.1.0.1", confirm=True)
+    out = server.disable_lb_pool_member("web-pool", "10.1.0.1", confirm=True)
     assert ctrl.puts == []
     assert "share IP 10.1.0.1" in out["error"]
 
 
 def test_pool_member_disable_unreadable_servers_is_refused(controller):
     ctrl = controller(pool={"name": "web-pool", "uuid": P1, "servers": None})
-    out = server.pool_member_disable("web-pool", "10.1.0.1", confirm=True)
+    out = server.disable_lb_pool_member("web-pool", "10.1.0.1", confirm=True)
     assert ctrl.puts == []
     assert "could not read servers" in out["error"]
 
@@ -358,7 +360,7 @@ def test_pool_member_disable_unreadable_servers_is_refused(controller):
 def test_pool_member_disable_unreadable_servers_preview_shows_no_counts(controller):
     """Unread is not zero: a preview must not print member_count 0 / enabled 0."""
     ctrl = controller(pool={"name": "web-pool", "uuid": P1, "servers": None})
-    out = server.pool_member_disable("web-pool", "10.1.0.1")
+    out = server.disable_lb_pool_member("web-pool", "10.1.0.1")
     assert out["action"] == "preview"
     br = out["blast_radius"]
     assert br["unmeasured"] == ["servers"]
@@ -371,35 +373,35 @@ def test_pool_member_disable_unreadable_servers_preview_shows_no_counts(controll
 
 def test_pool_member_disable_already_disabled_is_a_noop(controller):
     ctrl = controller()
-    out = server.pool_member_disable("web-pool", "10.1.0.3", confirm=True)
+    out = server.disable_lb_pool_member("web-pool", "10.1.0.3", confirm=True)
     assert out["action"] == "noop"
     assert ctrl.puts == []
 
 
 def test_pool_member_disable_unknown_member_teaches(controller):
     ctrl = controller()
-    out = server.pool_member_disable("web-pool", "10.9.9.9", confirm=True)
-    assert "pool_members" in out["error"]
+    out = server.disable_lb_pool_member("web-pool", "10.9.9.9", confirm=True)
+    assert "list_lb_pool_members" in out["error"]
     assert ctrl.puts == []
 
 
 def test_pool_member_disable_legacy_confirmed_acts(controller):
     ctrl = controller()
-    out = server.pool_member_disable("web-pool", "10.1.0.1", confirmed=True)
+    out = server.disable_lb_pool_member("web-pool", "10.1.0.1", confirmed=True)
     assert out["action"] == "drained" and len(ctrl.puts) == 1
     assert "confirmed is deprecated" in out["deprecated"]
 
 
 def test_pool_member_disable_legacy_confirmed_false_holds(controller):
     ctrl = controller()
-    out = server.pool_member_disable("web-pool", "10.1.0.1", confirm=True, confirmed=False)
+    out = server.disable_lb_pool_member("web-pool", "10.1.0.1", confirm=True, confirmed=False)
     assert out["action"] == "preview" and ctrl.puts == []
 
 
 # ─── schema ───────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("tool_name", ["vs_toggle", "pool_member_disable"])
+@pytest.mark.parametrize("tool_name", ["set_virtual_service_enabled", "disable_lb_pool_member"])
 def test_schema_defaults_confirm_to_false_and_alias_to_null(tool_name):
     tool = next(t for t in asyncio.run(server.mcp.list_tools()) if t.name == tool_name)
     props = tool.inputSchema["properties"]

@@ -181,7 +181,7 @@ def config_show() -> None:
 
 @vs_app.command("list")
 @cli_errors
-@audited("vs_list")
+@audited("list_virtual_services")
 def vs_list(
     controller: str | None = typer.Option(None, help="Controller name"),
 ) -> None:
@@ -192,7 +192,7 @@ def vs_list(
 
 
 @vs_app.command("status")
-@audited("vs_status")
+@audited("get_virtual_service_status")
 def vs_status(name: str = typer.Argument(help="Virtual Service name")) -> None:
     """Show Virtual Service status details."""
     from vmware_avi.ops.vs_mgmt import show_vs_status
@@ -200,11 +200,11 @@ def vs_status(name: str = typer.Argument(help="Virtual Service name")) -> None:
     show_vs_status(name)
 
 
-@guarded("vs_toggle", risk_level="high")
+@guarded("set_virtual_service_enabled", risk_level="high")
 def _vs_toggle(name: str, enable: bool) -> None:
     """The one guarded write behind ``vs enable`` and ``vs disable``.
 
-    Both commands are the MCP tool ``vs_toggle``, and a guarded row records the
+    Both commands are the MCP tool ``set_virtual_service_enabled``, and a guarded row records the
     guarded function's own parameters. Guarding each command directly recorded
     ``{"name": ...}`` for both, so the audit could not say whether a Virtual
     Service was switched on or off. ``enable`` is a parameter here — as it is
@@ -239,7 +239,7 @@ def vs_disable(name: str = typer.Argument(help="Virtual Service name")) -> None:
 
 @pool_app.command("members")
 @cli_errors
-@audited("pool_members")
+@audited("list_lb_pool_members")
 def pool_members(pool: str = typer.Argument(help="Pool name")) -> None:
     """List pool members and health status."""
     from vmware_avi.ops.pool_mgmt import list_pool_members
@@ -249,7 +249,7 @@ def pool_members(pool: str = typer.Argument(help="Pool name")) -> None:
 
 @pool_app.command("enable")
 @cli_errors
-@guarded('pool_member_enable', risk_level='medium')
+@guarded('enable_lb_pool_member', risk_level='medium')
 def pool_enable(
     pool: str = typer.Argument(help="Pool name"),
     server: str = typer.Argument(help="Server IP"),
@@ -259,7 +259,7 @@ def pool_enable(
 
     _run_audited(
         lambda: toggle_pool_member(pool, server, enable=True),
-        operation="pool_member_enable",
+        operation="enable_lb_pool_member",
         resource=pool,
         parameters={"server": server, "enable": True},
     )
@@ -267,7 +267,7 @@ def pool_enable(
 
 @pool_app.command("disable")
 @cli_errors
-@guarded('pool_member_disable', risk_level='high')
+@guarded('disable_lb_pool_member', risk_level='high')
 def pool_disable(
     pool: str = typer.Argument(help="Pool name"),
     server: str = typer.Argument(help="Server IP"),
@@ -277,7 +277,7 @@ def pool_disable(
 
     _run_audited(
         lambda: toggle_pool_member(pool, server, enable=False),
-        operation="pool_member_disable",
+        operation="disable_lb_pool_member",
         resource=pool,
         parameters={"server": server, "enable": False},
     )
@@ -288,7 +288,7 @@ def pool_disable(
 
 @ssl_app.command("list")
 @cli_errors
-@audited("ssl_list")
+@audited("list_ssl_certs")
 def ssl_list_cmd() -> None:
     """List all SSL certificates."""
     from vmware_avi.ops.ssl_mgmt import list_certificates
@@ -297,7 +297,7 @@ def ssl_list_cmd() -> None:
 
 
 @ssl_app.command("expiry")
-@audited("ssl_expiry_check")
+@audited("check_ssl_cert_expiry")
 def ssl_expiry(
     days: int = typer.Option(30, help="Show certs expiring within N days"),
 ) -> None:
@@ -312,7 +312,7 @@ def ssl_expiry(
 
 @se_app.command("list")
 @cli_errors
-@audited("se_list")
+@audited("list_service_engines")
 def se_list_cmd() -> None:
     """List all Service Engines."""
     from vmware_avi.ops.se_mgmt import list_service_engines
@@ -321,7 +321,7 @@ def se_list_cmd() -> None:
 
 
 @se_app.command("health")
-@audited("se_health")
+@audited("get_service_engine_health")
 def se_health() -> None:
     """Check Service Engine health."""
     from vmware_avi.ops.se_mgmt import check_se_health
@@ -333,7 +333,7 @@ def se_health() -> None:
 
 
 @app.command("analytics")
-@audited("vs_analytics")
+@audited("get_virtual_service_analytics")
 def analytics_cmd(vs_name: str = typer.Argument(help="Virtual Service name")) -> None:
     """Show VS analytics (throughput, latency, errors)."""
     from vmware_avi.ops.analytics import show_analytics
@@ -342,7 +342,7 @@ def analytics_cmd(vs_name: str = typer.Argument(help="Virtual Service name")) ->
 
 
 @app.command("logs")
-@audited("vs_error_logs")
+@audited("get_virtual_service_error_logs")
 def logs_cmd(
     vs_name: str = typer.Argument(help="Virtual Service name"),
     since: str = typer.Option("1h", help="Time range (e.g., 1h, 30m)"),
@@ -357,7 +357,7 @@ def logs_cmd(
 
 
 @ako_app.command("status")
-@audited("ako_status")
+@audited("get_ako_status")
 def ako_status(
     context: str | None = typer.Option(None, help="K8s context"),
 ) -> None:
@@ -368,7 +368,7 @@ def ako_status(
 
 
 @ako_app.command("logs")
-@audited("ako_logs")
+@audited("get_ako_logs")
 def ako_logs(
     tail: int = typer.Option(100, help="Number of lines"),
     since: str = typer.Option("", help="Time range (e.g., 30m, 1h)"),
@@ -382,7 +382,7 @@ def ako_logs(
 
 @ako_app.command("restart")
 @cli_errors
-@guarded(risk_level='high')
+@guarded('restart_ako', risk_level='high')
 def ako_restart(
     context: str | None = typer.Option(None, help="K8s context"),
 ) -> None:
@@ -391,14 +391,14 @@ def ako_restart(
 
     _run_audited(
         lambda: restart_ako(context),
-        operation="ako_restart",
+        operation="restart_ako",
         resource="ako-pod",
         parameters={"context": context or ""},
     )
 
 
 @ako_app.command("version")
-@audited("ako_version")
+@audited("get_ako_version")
 def ako_version(
     context: str | None = typer.Option(None, help="K8s context"),
 ) -> None:
@@ -412,7 +412,7 @@ def ako_version(
 
 
 @ako_app.command("config-show")
-@audited("ako_config_show")
+@audited("get_ako_config")
 def ako_config_show_cmd() -> None:
     """Show current AKO values.yaml."""
     from vmware_avi.ops.ako_config import show_ako_config
@@ -421,7 +421,7 @@ def ako_config_show_cmd() -> None:
 
 
 @ako_app.command("config-diff")
-@audited("ako_config_diff")
+@audited("diff_ako_config")
 def ako_config_diff_cmd(
     chart_version: str = typer.Option(
         "", help="Pin the chart version to compare against (default: registry latest)"
@@ -435,7 +435,7 @@ def ako_config_diff_cmd(
 
 @ako_app.command("config-upgrade")
 @cli_errors
-@guarded("ako_config_upgrade", risk_level="medium")
+@guarded("upgrade_ako_config", risk_level="medium")
 def ako_config_upgrade_cmd(
     dry_run: bool = typer.Option(True, help="Preview only (default: true)"),
     chart_version: str = typer.Option(
@@ -450,7 +450,7 @@ def ako_config_upgrade_cmd(
         return
     _run_audited(
         lambda: upgrade_ako(dry_run, chart_version=chart_version),
-        operation="ako_config_upgrade",
+        operation="upgrade_ako_config",
         resource="ako-helm-release",
         parameters={"dry_run": False, "chart_version": chart_version or "latest"},
     )
@@ -460,7 +460,7 @@ def ako_config_upgrade_cmd(
 
 
 @ako_app.command("ingress-check")
-@audited("ako_ingress_check")
+@audited("check_ako_ingress")
 def ako_ingress_check_cmd(
     namespace: str = typer.Argument(help="Namespace to check"),
 ) -> None:
@@ -471,7 +471,7 @@ def ako_ingress_check_cmd(
 
 
 @ako_app.command("ingress-map")
-@audited("ako_ingress_map")
+@audited("list_ako_ingresses")
 def ako_ingress_map_cmd() -> None:
     """Show Ingress to VS mapping."""
     from vmware_avi.ops.ako_ingress import show_ingress_map
@@ -480,7 +480,7 @@ def ako_ingress_map_cmd() -> None:
 
 
 @ako_app.command("ingress-diagnose")
-@audited("ako_ingress_diagnose")
+@audited("diagnose_ako_ingress")
 def ako_ingress_diagnose_cmd(
     name: str = typer.Argument(help="Ingress name"),
     namespace: str = typer.Option("default", help="Namespace"),
@@ -495,7 +495,7 @@ def ako_ingress_diagnose_cmd(
 
 
 @ako_app.command("sync-status")
-@audited("ako_sync_status")
+@audited("get_ako_sync_status")
 def ako_sync_status_cmd() -> None:
     """Check K8s-Controller sync status."""
     from vmware_avi.ops.ako_sync import check_sync_status
@@ -504,7 +504,7 @@ def ako_sync_status_cmd() -> None:
 
 
 @ako_app.command("sync-diff")
-@audited("ako_sync_diff")
+@audited("diff_ako_sync")
 def ako_sync_diff_cmd() -> None:
     """Show K8s-Controller inconsistencies."""
     from vmware_avi.ops.ako_sync import show_sync_diff
@@ -514,14 +514,14 @@ def ako_sync_diff_cmd() -> None:
 
 @ako_app.command("sync-force")
 @cli_errors
-@guarded("ako_sync_force", risk_level="high")
+@guarded("force_ako_sync", risk_level="high")
 def ako_sync_force_cmd() -> None:
     """Force AKO resync (requires confirmation)."""
     from vmware_avi.ops.ako_sync import force_resync
 
     _run_audited(
         lambda: force_resync(),
-        operation="ako_sync_force",
+        operation="force_ako_sync",
         resource="ako-pod",
         parameters={},
     )
@@ -531,7 +531,7 @@ def ako_sync_force_cmd() -> None:
 
 
 @ako_app.command("clusters")
-@audited("ako_clusters")
+@audited("list_ako_clusters")
 def ako_clusters_cmd() -> None:
     """List all clusters with AKO deployed."""
     from vmware_avi.ops.ako_multi_cluster import list_clusters
@@ -540,7 +540,7 @@ def ako_clusters_cmd() -> None:
 
 
 @ako_app.command("amko-status")
-@audited("ako_amko_status")
+@audited("get_ako_amko_status")
 def ako_amko_status_cmd() -> None:
     """Show AMKO (multi-cluster GSLB) status."""
     from vmware_avi.ops.ako_multi_cluster import show_amko_status

@@ -91,8 +91,9 @@ def _hint_for_status(status_code: int, path: str) -> str:
     """Return a correction hint for a failed API call."""
     if status_code == 404:
         return (
-            "Resource not found — run the matching list tool (vs_list, pool_list, "
-            "ssl_list, se_list) to get the exact name/uuid, then retry."
+            "Resource not found — run the matching list tool (list_virtual_services, "
+            "list_lb_pools, list_ssl_certs, list_service_engines) to get the exact "
+            "name/uuid, then retry."
         )
     if status_code in (401, 403):
         return (

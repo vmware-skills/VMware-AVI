@@ -1,4 +1,4 @@
-"""`ako_config_diff` must preview what `ako_config_upgrade` actually does.
+"""`diff_ako_config` must preview what `upgrade_ako_config` actually does.
 
 From the 2026-07-19 pre-release review. The two commands were presented as
 preview-then-apply but answered different questions:

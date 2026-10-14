@@ -361,16 +361,16 @@ vmware-avi-mcp
 
 | 类别 | 工具 |
 |------|------|
-| 虚拟服务（3） | `vs_list`, `vs_status`, `vs_toggle` |
-| 池成员（4） | `pool_list`, `pool_members`, `pool_member_enable`, `pool_member_disable` |
-| SSL 证书（2） | `ssl_list`, `ssl_expiry_check` |
-| 分析（2） | `vs_analytics`, `vs_error_logs` |
-| 服务引擎（2） | `se_list`, `se_health` |
-| AKO Pod（4） | `ako_status`, `ako_logs`, `ako_restart`, `ako_version` |
-| AKO 配置（3） | `ako_config_show`, `ako_config_diff`, `ako_config_upgrade` |
-| Ingress 诊断（3） | `ako_ingress_check`, `ako_ingress_map`, `ako_ingress_diagnose` |
-| 同步诊断（3） | `ako_sync_status`, `ako_sync_diff`, `ako_sync_force` |
-| 多集群（2） | `ako_clusters`, `ako_amko_status` |
+| 虚拟服务（3） | `list_virtual_services`, `get_virtual_service_status`, `set_virtual_service_enabled` |
+| 池成员（4） | `list_lb_pools`, `list_lb_pool_members`, `enable_lb_pool_member`, `disable_lb_pool_member` |
+| SSL 证书（2） | `list_ssl_certs`, `check_ssl_cert_expiry` |
+| 分析（2） | `get_virtual_service_analytics`, `get_virtual_service_error_logs` |
+| 服务引擎（2） | `list_service_engines`, `get_service_engine_health` |
+| AKO Pod（4） | `get_ako_status`, `get_ako_logs`, `restart_ako`, `get_ako_version` |
+| AKO 配置（3） | `get_ako_config`, `diff_ako_config`, `upgrade_ako_config` |
+| Ingress 诊断（3） | `check_ako_ingress`, `list_ako_ingresses`, `diagnose_ako_ingress` |
+| 同步诊断（3） | `get_ako_sync_status`, `diff_ako_sync`, `force_ako_sync` |
+| 多集群（2） | `list_ako_clusters`, `get_ako_amko_status` |
 
 ---
 
@@ -485,7 +485,7 @@ vmware-avi-mcp
 |------|------|
 | **双重确认** | 破坏性操作（VS 禁用、池成员禁用、AKO 重启、Helm 升级、强制同步）需要 2 次确认 |
 | **默认 Dry-Run** | `ako config upgrade` 默认为 `--dry-run` 模式，用户必须显式确认才会执行 |
-| **MCP 影响范围（blast radius）** | `vs_toggle`、`pool_member_disable`、`ako_restart`、`ako_sync_force`、`ako_config_upgrade` 带 `confirm` 参数（默认 `false`）：不传 `confirm=true` 时只返回 `blast_radius`（将改变什么：VS/池及成员数、AKO Pod 及其 Ingress、Helm release 与 chart 版本变化），不做任何修改。遇到阻断项（池内唯一启用的成员、正在终止的 AKO Pod、`helm --dry-run` 失败）或有字段读不到时，`confirm=true` 会被拒绝。`confirmed` / `dry_run` 为已弃用的别名 |
+| **MCP 影响范围（blast radius）** | `set_virtual_service_enabled`、`disable_lb_pool_member`、`restart_ako`、`force_ako_sync`、`upgrade_ako_config` 带 `confirm` 参数（默认 `false`）：不传 `confirm=true` 时只返回 `blast_radius`（将改变什么：VS/池及成员数、AKO Pod 及其 Ingress、Helm release 与 chart 版本变化），不做任何修改。遇到阻断项（池内唯一启用的成员、正在终止的 AKO Pod、`helm --dry-run` 失败）或有字段读不到时，`confirm=true` 会被拒绝。`confirmed` / `dry_run` 为已弃用的别名 |
 | **审计日志** | 所有操作通过 vmware-policy（`@vmware_tool` 装饰器）记录到 `~/.vmware/audit.db` |
 | **密码保护** | `.env` 文件加载并检查权限；密码不会出现在 shell 历史记录中 |
 | **SSL 支持** | `verify_ssl: false` 仅用于隔离实验环境中的自签名证书 |

@@ -45,7 +45,7 @@ ENTITY_WORDS = {
     'pool': ('pool', 'pools'),
     'server': ('server', 'servers', 'member', 'members'),
     'namespace': ('namespace', 'namespaces'),
-    # ako_ingress_diagnose takes an ingress name. Nothing on this surface
+    # diagnose_ako_ingress takes an ingress name. Nothing on this surface
     # enumerates ingresses, which is a finding rather than a reason to leave
     # the parameter unclassified.
     'ingress': ('ingress', 'ingresses'),

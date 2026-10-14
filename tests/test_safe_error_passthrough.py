@@ -36,7 +36,7 @@ from vmware_avi.config import ConfigError, ControllerConfig
 from vmware_avi.connection import AviApiError
 from vmware_avi.mcp_server.server import _safe_error
 
-TEACHING = "Resource at '/api/pool' not found — run pool_list to get the exact name/uuid."
+TEACHING = "Resource at '/api/pool' not found — run list_lb_pools to get the exact name/uuid."
 
 CONTROLLER = "avi-prod"
 ENV_KEY = "AVI_PROD_PASSWORD"
@@ -59,7 +59,7 @@ def _missing_password_error(monkeypatch) -> ConfigError:
 
 def test_missing_password_keeps_the_env_var_name(monkeypatch):
     """The one error config.py raises — and the whole point of it is the name."""
-    out = _safe_error(_missing_password_error(monkeypatch), "pool_list")
+    out = _safe_error(_missing_password_error(monkeypatch), "list_lb_pools")
     assert ENV_KEY in out
     assert "operation failed" not in out
 
@@ -69,14 +69,15 @@ def test_a_plain_oserror_is_no_longer_waved_through():
 
     The distinction is the whole fix: everything below is an ``OSError`` too.
     """
-    out = _safe_error(OSError("connect to avi.internal:443 failed"), "vs_list")
+    out = _safe_error(OSError("connect to avi.internal:443 failed"), "list_virtual_services")
     assert out == "OSError: operation failed."
     assert "avi.internal" not in out
 
 
 def test_dns_failure_does_not_leak_the_hostname():
     """``socket.gaierror`` is an ``OSError`` whose entire text is the hostname."""
-    out = _safe_error(socket.gaierror(-2, "Name or service not known: avi.internal"), "vs_list")
+    exc = socket.gaierror(-2, "Name or service not known: avi.internal")
+    out = _safe_error(exc, "list_virtual_services")
     assert out == "gaierror: operation failed."
     assert "avi.internal" not in out
 
@@ -88,7 +89,7 @@ def test_avi_api_error_keeps_its_message():
 
 @pytest.mark.parametrize("exc_type", [ValueError, FileNotFoundError, KeyError, PermissionError])
 def test_validation_errors_still_pass_through(exc_type):
-    assert "pool_list" in _safe_error(exc_type(TEACHING), "t")
+    assert "list_lb_pools" in _safe_error(exc_type(TEACHING), "t")
 
 
 def test_dropped_connection_surfaces_its_hint():

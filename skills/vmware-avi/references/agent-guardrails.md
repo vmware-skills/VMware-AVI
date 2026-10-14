@@ -106,19 +106,19 @@ your agent's instruction block.
   Kubernetes-side objects (AKO pod, Helm values, Ingress) are different things.
   Name which side you are reporting on.
 - An Ingress with no virtual service is an AKO reconciliation question, not a
-  missing-VS question. Use ako_ingress_check, then ako_logs, then
-  ako_sync_diff — in that order.
+  missing-VS question. Use check_ako_ingress, then get_ako_logs, then
+  diff_ako_sync — in that order.
 - SSL certificates are tenant-scoped. An empty certificate list may mean the
   configured user cannot see that tenant, not that no certificates exist.
 
 ## Writes in vmware-avi
 
-- vs_toggle takes a virtual service out of service. Call it without confirm
+- set_virtual_service_enabled takes a virtual service out of service. Call it without confirm
   first: that returns blast_radius (the VS, its current state, the pools and
   members behind it) and changes nothing. Show it and wait for the user's
   decision before calling again with confirm=true.
-- ako_config_upgrade is a Helm release upgrade against a live cluster. Show
-  ako_config_diff first, then the preview (without confirm) of the upgrade.
+- upgrade_ako_config is a Helm release upgrade against a live cluster. Show
+  diff_ako_config first, then the preview (without confirm) of the upgrade.
 - A pool member that reports "down" straight after being enabled is failing its
   health monitor. Report that, do not re-enable it in a loop.
 ```
@@ -136,7 +136,7 @@ checklist when evaluating any local model against these skills:
 | Long tool responses: omits items, or reports "no data returned" when data was present | Ask for explicit limits and narrow time windows so responses stay small. This skill has no truncation envelope to check the model's summary against, so verify against the controller when the answer matters. |
 | Adds generic recommendations unsupported by results | The "analysis discipline" rules. |
 | Drops requested fields or reorders results | State the required fields and ordering in the request itself, not only in the system prompt. |
-| Multi-tool workflows take 30–50s end to end | Prefer the tools that answer a whole question in one call: `ako_ingress_diagnose` replaces a check/logs/diff sequence, and `ssl_expiry_check` replaces enumerating certificates and comparing dates by hand. |
+| Multi-tool workflows take 30–50s end to end | Prefer the tools that answer a whole question in one call: `diagnose_ako_ingress` replaces a check/logs/diff sequence, and `check_ssl_cert_expiry` replaces enumerating certificates and comparing dates by hand. |
 | Reads an empty analytics series as an outage | The "empty series means no data" rule. Virtual services with no traffic legitimately return nothing for the window. |
 | Passes a bare number where a duration was meant, or invents its own unit | State the window explicitly, in seconds or with a suffix. |
 | Confuses an AKO problem with a Controller problem and reports the wrong root cause | The "two control planes" block above. Make the model name the side it is describing. |

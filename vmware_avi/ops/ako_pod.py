@@ -24,7 +24,7 @@ def _get_ako_pod_name(core_v1, namespace: str) -> str:
         )
     if not pods.items:
         raise RuntimeError(
-            "AKO pod not found. Run ako_clusters to see which contexts have AKO "
+            "AKO pod not found. Run list_ako_clusters to see which contexts have AKO "
             "installed, verify the current kube-context, or set ako.namespace in "
             f"~/.vmware-avi/config.yaml. Searched namespace: '{namespace}'"
         )

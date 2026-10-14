@@ -52,9 +52,9 @@ def show_vs_status(name: str) -> None:
     vs = session.get_object_by_name("virtualservice", name)
     if not vs:
         console.print(
-            f"[red]Virtual Service '{name}' not found on this Controller. Run vs_list "
-            "(CLI: vmware-avi vs list) to see available Virtual Services and copy an "
-            "exact name.[/red]"
+            f"[red]Virtual Service '{name}' not found on this Controller. Run "
+            "list_virtual_services (CLI: vmware-avi vs list) to see available "
+            "Virtual Services and copy an exact name.[/red]"
         )
         raise SystemExit(1)
 
@@ -160,9 +160,9 @@ def toggle_vs(name: str, *, enable: bool, skip_prompt: bool = False) -> None:
     vs = session.get_object_by_name("virtualservice", name)
     if not vs:
         console.print(
-            f"[red]Virtual Service '{name}' not found on this Controller. Run vs_list "
-            "(CLI: vmware-avi vs list) to see available Virtual Services and copy an "
-            "exact name.[/red]"
+            f"[red]Virtual Service '{name}' not found on this Controller. Run "
+            "list_virtual_services (CLI: vmware-avi vs list) to see available "
+            "Virtual Services and copy an exact name.[/red]"
         )
         raise SystemExit(1)
 
@@ -174,7 +174,8 @@ def toggle_vs(name: str, *, enable: bool, skip_prompt: bool = False) -> None:
     except AviApiError as exc:
         console.print(
             f"[red]Failed to {action} Virtual Service '{name}'. The Virtual Service was "
-            "not changed — run vs_status to confirm its current state before retrying. "
+            "not changed — run get_virtual_service_status to confirm its current state "
+            "before retrying. "
             f"Cause: {exc}[/red]"
         )
         raise SystemExit(1) from None

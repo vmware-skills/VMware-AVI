@@ -27,7 +27,7 @@ from vmware_policy.audit import reset_engine
 #
 # Before this, one run of this suite appended 7 rows to the operator's real
 # ~/.vmware/audit.db — which held 30,779, dominated by tool names nobody had
-# invoked, including 1,400 ako_config_upgrade entries for a destructive
+# invoked, including 1,400 upgrade_ako_config entries for a destructive
 # operation that never happened.
 REAL_HOME = pathlib.Path(os.path.expanduser("~"))
 SANDBOX_HOME = pathlib.Path(tempfile.mkdtemp(prefix="vmware-avi-tests-"))
