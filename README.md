@@ -32,7 +32,7 @@ AVI (NSX Advanced Load Balancer) management and AKO Kubernetes operations tool �
 
 ## Upgrading to 2.0
 
-2.0 renames 28 MCP tools so every name starts with a verb (e.g. `ako_amko_status` → `get_ako_amko_status`, `ako_clusters` → `list_ako_clusters`, `ako_config_diff` → `diff_ako_config`). The full old → new table is in
+2.0 renames all 28 MCP tools so every name starts with a verb (e.g. `ako_amko_status` → `get_ako_amko_status`, `ako_clusters` → `list_ako_clusters`, `ako_config_diff` → `diff_ako_config`). The full old → new table is in
 [RELEASE_NOTES.md](RELEASE_NOTES.md#v200--mcp-tools-renamed-verb-first). Nothing else changes: same tools, parameters,
 safety gates and CLI commands. If an agent prompt, script or `~/.vmware/rules.yaml` names a tool, update it — though deny
 rules written with the old names keep working with vmware-policy ≥ 1.18 (`vmware-audit policy` lists any rule the
