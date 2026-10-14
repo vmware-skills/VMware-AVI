@@ -164,7 +164,7 @@ def _entry_points(tools) -> tuple:
 def _enumerated_entities(tool) -> tuple[str, ...]:
     """Entity tokens this tool plausibly enumerates, judged from its name."""
     name = tool.name.lower()
-    # `map` earns its place the hard way: vmware-avi's `list_ako_ingresses` really
+    # `map` earns its place the hard way: vmware-avi's `ako_ingress_map` really
     # does enumerate namespaces, but no keyword recognised it, so the only
     # producer on that surface was invisible and the chain read as broken. A
     # keyword list is a guess at naming convention; when a repo names a producer
