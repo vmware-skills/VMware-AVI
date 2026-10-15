@@ -248,7 +248,7 @@ def kube(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> SimpleNamespace:
     from kubernetes import config
 
     kubeconfig = tmp_path / "kubeconfig"
-    kubeconfig.write_text("fake")
+    kubeconfig.write_text("fake", encoding="utf-8")
     built: list[tuple[str, str, MagicMock]] = []
 
     def new_client(config_file: str, context: str) -> MagicMock:
