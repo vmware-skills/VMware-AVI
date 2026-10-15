@@ -571,6 +571,11 @@ claude mcp add --transport http vmware-avi https://mcp.example.com:8443/mcp \
   证书要用客户端信任、且覆盖这些名字的证书。
 - 在同一台机器上由反向代理终结 TLS 时，用 `--transport http --host 127.0.0.1 --public-name mcp.example.com`，
   并让代理透传 `Authorization` 头。
+- 负载均衡或网关在另一台机器上时，保持 `--transport https`（自签证书也可以），在 `--public-name` 里写上负载均衡
+  转发时带的 `Host` 名，并让它透传 `Authorization`。健康检查可以用 `GET /healthz`：不需要 token，只返回
+  `{"status": "ok"}`（需 vmware-policy ≥ 1.23.0）。
+- 每个请求带上 `traceparent` 或 `X-Request-ID`，它会记进审计记录；用 `vmware-audit log --correlation-id ID`
+  就能查到平台上某一次请求对应的调用。
 - 审计日志把每个调用者记为 `token:<名字>`。调用并行执行：每个调用独占一个到 Controller（或 Kubernetes context）的
   会话，每个 target 最多 `VMWARE_MCP_POOL_SIZE`（默认 2）个会话。每个 Controller 会话都是在 Controller 上的一次登录；
   调用最多等待 300 秒拿到空闲会话。

@@ -591,6 +591,12 @@ claude mcp add --transport http vmware-avi https://mcp.example.com:8443/mcp \
   before it binds that unauthenticated requests get 401. Use a certificate your clients trust for those names.
 - Behind a TLS-terminating reverse proxy on the same machine use `--transport http --host 127.0.0.1
   --public-name mcp.example.com` and pass the `Authorization` header through.
+- Behind a load balancer or gateway on another machine, keep `--transport https` (a self-signed certificate is
+  fine), list in `--public-name` the host name the balancer sends as `Host`, and have it forward `Authorization`.
+  Its health probe can use `GET /healthz`, which needs no token and returns only `{"status": "ok"}`
+  (vmware-policy ≥ 1.23.0).
+- Send `traceparent` or `X-Request-ID` with each request to have it stored on the audit row;
+  `vmware-audit log --correlation-id ID` then finds the calls behind one platform request.
 - The audit log records each caller as `token:<name>`. Calls run side by side: each holds its own session to a
   Controller (or Kubernetes context), up to `VMWARE_MCP_POOL_SIZE` (default 2) sessions per target. Each Controller
   session is a login on the Controller; a call waits at most 300 s for a free one.
