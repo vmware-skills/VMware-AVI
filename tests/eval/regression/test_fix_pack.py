@@ -19,7 +19,7 @@ Each test pins one production bug:
 7. list_pools vs_filter missed pools because '#name' / '?...' fragments were
    left on refs.
 9. CLI write commands never called the audit module.
-10. FQDN→IP resolution + verify_ssl kwarg must reach ApiSession.get_session.
+10. FQDN→IP resolution + verify_ssl kwarg must reach the ApiSession it builds.
 """
 
 from __future__ import annotations
@@ -525,24 +525,24 @@ class TestConnectionSessionKwargs:
         assert resolved == "10.0.0.1"
         mock_gai.assert_not_called()
 
-    def test_verify_ssl_kwarg_reaches_get_session(self) -> None:
+    def test_verify_ssl_kwarg_reaches_the_api_session(self) -> None:
         ctrl = ControllerConfig(name="lab", host="10.0.0.1", verify_ssl=False)
         with (
-            patch("avi.sdk.avi_api.ApiSession.get_session") as mock_get_session,
+            patch("avi.sdk.avi_api.ApiSession") as mock_api_session,
             patch.dict("os.environ", {"LAB_PASSWORD": "pw"}),
         ):
             AviConnectionManager._create_session(ctrl)
 
-        kwargs = mock_get_session.call_args.kwargs
+        kwargs = mock_api_session.call_args.kwargs
         assert kwargs["verify"] is False
         assert kwargs["controller_ip"] == "10.0.0.1"
 
     def test_verify_ssl_default_true(self) -> None:
         ctrl = ControllerConfig(name="lab", host="10.0.0.1")
         with (
-            patch("avi.sdk.avi_api.ApiSession.get_session") as mock_get_session,
+            patch("avi.sdk.avi_api.ApiSession") as mock_api_session,
             patch.dict("os.environ", {"LAB_PASSWORD": "pw"}),
         ):
             AviConnectionManager._create_session(ctrl)
 
-        assert mock_get_session.call_args.kwargs["verify"] is True
+        assert mock_api_session.call_args.kwargs["verify"] is True

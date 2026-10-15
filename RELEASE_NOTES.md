@@ -1,3 +1,20 @@
+## Unreleased — calls run side by side
+
+**Calls no longer wait for each other** (HLD §16 D-13(2), via vmware-policy 1.22.0). When one server serves several
+callers (`--transport https` / `http`), each call now holds its own Controller session — and its own Kubernetes client
+for the AKO tools — for as long as it runs, up to `VMWARE_MCP_POOL_SIZE` (default 2) per Controller or context. Each
+Controller session is a separate login: avisdk's `ApiSession.get_session` handed every caller the one session it caches
+per controller and user, so concurrent calls used to share, and re-authenticate over, a single login. A call that finds
+every session busy waits at most 300 s, then fails naming the target. The CLI and stdio keep one session per
+Controller, as before.
+
+* Tool output no longer crosses between callers. Each tool captured its text by swapping the ops module's console for
+  the length of the call; two calls at once could each receive the other's lines. Capture is now per call.
+* AKO tools build each Kubernetes client from the kubeconfig directly instead of through `load_kube_config`, which
+  rewrote the process-wide default configuration — two calls on different contexts could reach each other's cluster.
+  A client is rebuilt when the kubeconfig file changes.
+* Requires `vmware-policy>=1.22.0`.
+
 ## v2.2.0 — serve MCP over HTTPS
 
 `vmware-avi mcp` can now serve the network as well as stdio (HLD §16, via vmware-policy 1.21.0):

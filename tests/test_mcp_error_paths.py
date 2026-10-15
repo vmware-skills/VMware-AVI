@@ -210,15 +210,19 @@ def test_a_successful_call_is_still_audited_as_ok(monkeypatch, audit_rows):
 
 
 def test_console_is_restored_after_a_failure(op):
-    """The swap is global to the ops module; leaking it would silently redirect
-    every later CLI call in the same process into a dead buffer."""
+    """Leaking the capture would silently redirect every later CLI call in the
+    same process into a dead buffer: after a failed capture, printing outside a
+    capture must reach the module's own console again."""
+    import io
     import sys
 
     mod = sys.modules[__name__]
-    before = mod.console
+    own = io.StringIO()
+    mod.console = Console(file=own, force_terminal=False)
 
     def failing():
         raise SystemExit(1)
 
     srv._capture_output(op(failing))
-    assert mod.console is before
+    mod.console.print("after the capture")
+    assert "after the capture" in own.getvalue()

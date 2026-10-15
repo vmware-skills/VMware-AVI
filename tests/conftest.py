@@ -171,3 +171,22 @@ def _patch_k8s_connect(
         ),
     ):
         yield
+
+
+# ---------------------------------------------------------------------------
+# Process-wide session pools (HLD §16 D-13(2))
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _fresh_session_pools(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Each test starts with empty pools: the managers share theirs process-wide."""
+    from vmware_avi.connection import AviConnectionManager
+    from vmware_avi.k8s_connection import K8sConnectionManager
+
+    for cls, registry in (
+        (AviConnectionManager, "_built_from"),
+        (K8sConnectionManager, "_kubeconfig_for"),
+    ):
+        monkeypatch.setattr(cls, "_pool", None)
+        monkeypatch.setattr(cls, registry, {})

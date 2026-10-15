@@ -339,7 +339,8 @@ class TestLogoutIsPost:
 
         mgr = AviConnectionManager(sample_config)
         session = MagicMock()
-        mgr._sessions["lab"] = session
+        with patch.object(AviConnectionManager, "_create_session", return_value=session):
+            assert mgr.connect("lab") is session
 
         mgr.disconnect("lab")
 
@@ -349,7 +350,7 @@ class TestLogoutIsPost:
             assert call.args[:1] != ("logout",), (
                 "logout must not be sent as DELETE"
             )
-        assert "lab" not in mgr._sessions
+        assert "lab" not in mgr.list_connected()
 
     def test_logout_failure_does_not_raise(self, sample_config) -> None:
         from vmware_avi.connection import AviConnectionManager
@@ -357,10 +358,11 @@ class TestLogoutIsPost:
         mgr = AviConnectionManager(sample_config)
         session = MagicMock()
         session.post.side_effect = RuntimeError("controller gone")
-        mgr._sessions["lab"] = session
+        with patch.object(AviConnectionManager, "_create_session", return_value=session):
+            mgr.connect("lab")
 
         mgr.disconnect("lab")  # must not raise
-        assert "lab" not in mgr._sessions
+        assert "lab" not in mgr.list_connected()
 
 
 # ── Finding 7 — error-log filter must be ge(response_code,400) ───────────────

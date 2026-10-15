@@ -5,9 +5,11 @@ Entry point: vmware-avi-mcp (defined in pyproject.toml).
 """
 
 import logging
+import threading
+from contextvars import ContextVar
 from io import StringIO
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from mcp.server.fastmcp import FastMCP
 from vmware_policy import (
@@ -16,6 +18,7 @@ from vmware_policy import (
     sanitize,
     vmware_tool,
 )
+from vmware_policy.pool import PoolTimeoutError
 
 from vmware_avi import __version__
 from vmware_avi.config import CONFIG_FILE, ConfigError, load_config, resolve_config_path
@@ -174,6 +177,7 @@ def _safe_error(exc: Exception, tool: str) -> str:
         ConnectionError,
         ConfigError,
         AviApiError,
+        PoolTimeoutError,  # names the target and the remedy (vmware-policy authored)
     )
     if isinstance(exc, _passthrough):
         return sanitize(str(exc), 300)
@@ -212,6 +216,35 @@ def _as_error(captured: str, detail: str = "") -> str:
     return f"Error: {body}"
 
 
+#: The console the current call prints to. Per context, so calls running at the
+#: same time in worker threads (HLD §16) each capture only their own output.
+_capture_target: ContextVar[Any] = ContextVar("vmware_avi_capture_console", default=None)
+_route_lock = threading.Lock()
+
+
+class _RoutedConsole:
+    """Stands in for an ops module's ``console``: prints go to the current call's capture.
+
+    The capture used to swap the module attribute for the length of a call. With
+    two calls at once that sent one caller's output into the other's result, and
+    the second call's restore left the first one's buffer installed for good.
+    Outside a capture (the CLI) it is the module's own console.
+    """
+
+    def __init__(self, default: Any) -> None:
+        self._default = default
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(_capture_target.get() or self._default, name)
+
+
+def _route_console(mod: Any) -> None:
+    with _route_lock:
+        current = getattr(mod, "console", None)
+        if current is not None and not isinstance(current, _RoutedConsole):
+            mod.console = _RoutedConsole(current)
+
+
 def _capture_output(func, *args, **kwargs) -> str:
     """Run a function and capture its Rich console output as plain text.
 
@@ -227,13 +260,10 @@ def _capture_output(func, *args, **kwargs) -> str:
 
     capture_console = Console(file=buf, force_terminal=False, width=120)
 
-    mod_name = func.__module__
-    mod = sys.modules.get(mod_name)
-    original_console = getattr(mod, "console", None) if mod else None
-
-    if mod and original_console is not None:
-        mod.console = capture_console
-
+    mod = sys.modules.get(func.__module__)
+    if mod is not None:
+        _route_console(mod)
+    token = _capture_target.set(capture_console)
     try:
         func(*args, **kwargs)
     except SystemExit as exc:
@@ -244,8 +274,7 @@ def _capture_output(func, *args, **kwargs) -> str:
     except Exception as exc:  # noqa: BLE001 — reduced to a safe string below
         return _as_error(buf.getvalue(), _safe_error(exc, getattr(func, "__name__", "?")))
     finally:
-        if mod and original_console is not None:
-            mod.console = original_console
+        _capture_target.reset(token)
 
     return buf.getvalue()
 
@@ -1165,6 +1194,8 @@ def main(
         skill="avi",
         expose=expose, allow_write=allow_write, transport=transport, host=host, port=port,
         cert=cert, key=key, public_name=public_name, token_file=token_file,
+        # Both connection managers give each call its own session (HLD §16 D-13(2)).
+        pooled=True,
     )
 
 

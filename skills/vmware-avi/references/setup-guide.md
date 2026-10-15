@@ -261,8 +261,9 @@ vmware-avi mcp --transport https --host 0.0.0.0 --port 8443 \
   Replace a leaked token under a new name.
 - The server will not start without at least one token, and checks before it binds that unauthenticated requests
   are refused.
-- Each audit row records the caller as `token:<name>`. Calls naming different targets run in parallel; calls that
-  name no target run one at a time, so name the target when several people use one server.
+- Each audit row records the caller as `token:<name>`. Calls run side by side: each holds its own session to a
+  Controller (or Kubernetes context), up to `VMWARE_MCP_POOL_SIZE` (default 2) sessions per target. Each Controller
+  session is a login on the Controller; a call waits at most 300 s for a free one.
 - **Everyone who can reach the endpoint acts with this server's account.** Tokens identify callers; they grant
   nothing on the platform. Run one endpoint per privilege level (for example a read-only account behind
   `--expose read`, and a separate endpoint for operators).
