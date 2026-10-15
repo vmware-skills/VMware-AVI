@@ -14,6 +14,7 @@ contexts could each end up talking to the other's cluster.
 from __future__ import annotations
 
 import logging
+import hashlib
 import os
 import threading
 from dataclasses import dataclass
@@ -106,7 +107,8 @@ class K8sConnectionManager:
         """Get the Kubernetes API client for a context (the kubeconfig's current one if none)."""
         name, kubeconfig = self._resolve_context(context)
         pool = self._clients()
-        key = f"{name} ({kubeconfig})"
+        # A digest, not the path: the key reaches agents in pool-timeout errors.
+        key = f"{name}@{hashlib.sha256(kubeconfig.encode()).hexdigest()[:8]}"
         with self._pool_lock:
             self._kubeconfig_for.setdefault(key, (name, kubeconfig))
             stale = [k for k, (ctx, kc) in self._kubeconfig_for.items() if ctx == name and k != key]

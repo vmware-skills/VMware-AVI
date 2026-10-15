@@ -491,7 +491,7 @@ def test_k8s_overlapping_kubeconfig_change_keeps_each_calls_file(
     kube: SimpleNamespace, monkeypatch: pytest.MonkeyPatch, tmp_path: Any
 ) -> None:
     other = tmp_path / "other-kubeconfig"
-    other.write_text("fake")
+    other.write_text("fake", encoding="utf-8")
     pool = K8sConnectionManager._clients()
     original_get = pool.get
     done: list[Any] = []
