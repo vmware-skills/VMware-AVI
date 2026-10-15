@@ -21,7 +21,7 @@ Complete installation, configuration, and AI platform integration guide for the 
 ### Standard Install (recommended)
 
 ```bash
-uv tool install vmware-avi==2.0.0
+uv tool install vmware-avi==2.1.0
 ```
 
 This installs the CLI (`vmware-avi`, with `vmware-avi mcp` subcommand for the MCP server in v1.5.15+), the legacy `vmware-avi-mcp` entry point (for backward compatibility), and all Python dependencies in an isolated environment.
@@ -29,7 +29,7 @@ This installs the CLI (`vmware-avi`, with `vmware-avi mcp` subcommand for the MC
 ### Development Install
 
 ```bash
-git clone --branch v2.0.0 https://github.com/vmware-skills/VMware-AVI.git
+git clone --branch v2.1.0 https://github.com/vmware-skills/VMware-AVI.git
 cd VMware-AVI
 uv pip install -e ".[dev]"
 ```
@@ -43,7 +43,7 @@ For platforms that prefer containerized MCP servers (e.g., Smithery registry, Ku
 Build and run the MCP server in a container. The image uses `python:3.12-slim` with `uv` for dependency installation and runs `python -m vmware_avi.mcp_server` on stdio (no port exposed — MCP uses stdin/stdout).
 
 ```bash
-git clone --branch v2.0.0 https://github.com/vmware-skills/VMware-AVI.git
+git clone --branch v2.1.0 https://github.com/vmware-skills/VMware-AVI.git
 cd VMware-AVI
 
 # Build
@@ -72,7 +72,7 @@ Users can install via the Smithery UI or CLI without managing Python environment
 
 | Deployment | Best For |
 |------------|----------|
-| `uv tool install vmware-avi==2.0.0` + `vmware-avi mcp` | Local developer workstation, single-user CLI + MCP |
+| `uv tool install vmware-avi==2.1.0` + `vmware-avi mcp` | Local developer workstation, single-user CLI + MCP |
 | Docker image | Self-hosted agents, CI runners, isolated environments, multi-user servers |
 | Smithery | Zero-install agent integration, registry-managed discovery, hosted-MCP workflows |
 
@@ -211,6 +211,33 @@ whitespace are handled correctly).
 > at all — inject it from a secret manager (HashiCorp Vault, CyberArk, AWS
 > Secrets Manager, or a Kubernetes Secret) into the `*_PASSWORD` environment
 > variable at process start. The code reads the env var either way.
+
+## Limiting which tools are offered
+
+By default the MCP server offers every tool. To offer only read tools, start it with `--expose read`, or set
+`VMWARE_AVI_MCP_EXPOSE=read` in the MCP client's `env` block (useful when the client launches `vmware-avi mcp` itself). To offer
+chosen write tools as well, add `--allow-write` with a comma-separated list (or `VMWARE_AVI_MCP_ALLOW_WRITE`):
+
+```bash
+vmware-avi mcp --expose read --allow-write disable_lb_pool_member
+```
+
+- A read tool is one annotated `readOnlyHint: true`; every other tool counts as a write.
+- An unknown setting, or a name that is not a write tool of this server, stops the server before it serves (exit
+  code 2), so it never offers more than you asked for. Pre-2.0 tool names are accepted.
+- With `--expose read`, the server prints one line to stderr saying what it exposes.
+- Flags and environment variables are not mixed: if either flag is given, both environment variables are
+  ignored, so a leftover `_ALLOW_WRITE` in the shell cannot widen `--expose read`. A blank flag value counts as
+  not given.
+- A tool that runs other steps (a plan, workflow or batch tool) carries every write it can execute, including
+  writes this setting hides. Expose such a tool only if you would expose those writes too.
+- A launcher that imports the server object can call
+  `vmware_policy.exposure.restrict_tools(mcp, skill="avi", expose="read", allow_write=[...])` before running it,
+  instead of editing the SDK's tool registry.
+- This limits what clients are offered. It is **not** authorization: whether a call may change anything is decided by
+  the account's permissions, and deny rules in `~/.vmware/rules.yaml` still apply to every exposed tool.
+- An agent that can run shell commands can also reach the platform without MCP (SSH, curl, govc, PowerCLI). So
+  the service account itself must be least-privilege: exposure and deny rules are guardrails, not the boundary.
 
 ## Security
 
