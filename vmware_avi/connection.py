@@ -10,10 +10,12 @@ and retry transient gateway errors (502/503/504) exactly once.
 
 from __future__ import annotations
 
+import hashlib
 import itertools
 import logging
 import threading
 import time
+from datetime import datetime
 from functools import lru_cache
 from typing import TYPE_CHECKING, ClassVar
 
@@ -204,18 +206,69 @@ def api_get_all(
     return merged
 
 
-#: Serializes every avisdk ``ApiSession`` construction and close in this process.
-#: avisdk keeps one module-global ``sessionDict`` and, on every construction,
-#: walks it deleting idle entries (``_clean_inactive_sessions``) with a
-#: check-then-``del`` that raises ``KeyError`` if another thread removed the same
-#: entry in between.
-_AVISDK_LOCK = threading.Lock()
 _session_serial = itertools.count(1)
+
+#: Marks the avisdk ``sessionDict`` keys of pooled sessions (see _create_session).
+_POOLED_KEY_MARK = "#vmware-avi-"
+_cleanup_installed = False
+_cleanup_lock = threading.Lock()
+
+
+def _clean_inactive_unpooled_sessions() -> None:
+    """avisdk's ``_clean_inactive_sessions``, skipping the sessions the pool owns.
+
+    avisdk runs its cleanup inside every ``ApiSession()`` constructor: it walks
+    the module-global ``sessionDict``, POSTs ``logout`` through each entry idle
+    for 20 minutes and deletes the entry. Those entries include sessions resting
+    idle in our pool, so one call's login logged out — through the very
+    ``ApiSession`` object — a session the pool was handing to another call at the
+    same moment, and that call later failed with ``KeyError: 'connected'`` when
+    avisdk tried to re-authenticate on the deleted entry. The pool owns the
+    lifetime of its sessions (it probes each one at checkout and logs out what it
+    drops), so this leaves them alone; other entries are cleaned as avisdk would,
+    with ``pop`` instead of a check-then-``del`` that races.
+    """
+    from avi.sdk import avi_api
+
+    cache = avi_api.sessionDict  # read now: clear_cached_sessions() rebinds it
+    expiry = avi_api.ApiSession.SESSION_CACHE_EXPIRY
+    for key, entry in list(cache.items()):
+        if _POOLED_KEY_MARK in key:
+            continue
+        idle = avi_api.avi_timedelta(datetime.utcnow() - entry["last_used"])  # avisdk's clock
+        if idle < expiry:
+            continue
+        try:
+            entry["api"].post("logout")
+        except Exception as e:  # noqa: BLE001 — as avisdk: the session may be gone
+            _log.debug("Logout of an inactive avisdk session failed: %s", e)
+        cache.pop(key, None)
+
+
+def _install_cleanup() -> None:
+    """Replace avisdk's cleanup once per process (it is looked up on the class per call)."""
+    global _cleanup_installed  # noqa: PLW0603
+    with _cleanup_lock:
+        if not _cleanup_installed:
+            from avi.sdk.avi_api import ApiSession
+
+            ApiSession._clean_inactive_sessions = staticmethod(_clean_inactive_unpooled_sessions)
+            _cleanup_installed = True
 
 
 def _controller_fingerprint(ctrl: ControllerConfig) -> tuple:
-    """What a pooled session was built from; a change means its sessions are stale."""
+    """What a pooled session is built from; a change means its sessions are stale."""
     return (ctrl.host, ctrl.port, ctrl.username, ctrl.tenant, ctrl.api_version, ctrl.verify_ssl)
+
+
+def _pool_key(ctrl: ControllerConfig) -> str:
+    """Pool key: the controller name plus a digest of the settings its sessions use.
+
+    Keyed by settings, a session is always built from exactly the config its key
+    names, even while calls holding an old and a new config.yaml overlap.
+    """
+    digest = hashlib.sha256(repr(_controller_fingerprint(ctrl)).encode()).hexdigest()[:8]
+    return f"{ctrl.name}@{digest}"
 
 
 class AviConnectionManager:
@@ -240,7 +293,8 @@ class AviConnectionManager:
 
     _pool: ClassVar[SessionPool[ApiSession] | None] = None
     _pool_lock: ClassVar[threading.Lock] = threading.Lock()
-    #: Controller name -> the config its pooled sessions were built from.
+    #: Pool key -> the config its sessions are built from. A key never changes
+    #: config (the key carries a digest of it), so concurrent calls cannot race.
     _built_from: ClassVar[dict[str, ControllerConfig]] = {}
 
     def __init__(self, config: AppConfig) -> None:
@@ -259,9 +313,9 @@ class AviConnectionManager:
             return cls._pool
 
     @classmethod
-    def _create_for(cls, name: str) -> ApiSession:
+    def _create_for(cls, key: str) -> ApiSession:
         with cls._pool_lock:
-            ctrl = cls._built_from[name]
+            ctrl = cls._built_from[key]
         connect_failures = _connect_failure_types()
         try:
             return cls._create_session(ctrl)
@@ -295,8 +349,7 @@ class AviConnectionManager:
             session.post("logout")
         except Exception as e:  # noqa: BLE001 — the session may already be dead
             _log.debug("Logout POST failed: %s — dropping session locally anyway", e)
-        with _AVISDK_LOCK:
-            session.delete_session()
+        session.delete_session()  # pops only this session's own key
         session.close()
 
     def connect(self, controller_name: str | None = None) -> ApiSession:
@@ -307,16 +360,25 @@ class AviConnectionManager:
             else self._config.active_controller
         )
         pool = self._sessions()
+        key = _pool_key(ctrl)
         with self._pool_lock:
-            before = self._built_from.get(ctrl.name)
-            self._built_from[ctrl.name] = ctrl
-        if before is not None and _controller_fingerprint(before) != _controller_fingerprint(ctrl):
-            pool.discard(ctrl.name)  # config edited: sessions to the old settings go
-        return pool.get(ctrl.name)
+            self._built_from.setdefault(key, ctrl)
+            stale = [k for k in self._built_from if k != key and self._name_of(k) == ctrl.name]
+        for old in stale:
+            pool.discard(old)  # config edited: sessions to the old settings go
+        return pool.get(key)
+
+    @staticmethod
+    def _name_of(key: str) -> str:
+        return key.rsplit("@", 1)[0]
 
     def disconnect(self, controller_name: str) -> None:
         """Log out the controller's sessions (busy ones when their calls finish)."""
-        self._sessions().discard(controller_name)
+        pool = self._sessions()
+        with self._pool_lock:
+            keys = [k for k in self._built_from if self._name_of(k) == controller_name]
+        for key in keys:
+            pool.discard(key)
 
     def disconnect_all(self) -> None:
         self._sessions().close_all()
@@ -325,7 +387,7 @@ class AviConnectionManager:
         return [c.name for c in self._config.controllers]
 
     def list_connected(self) -> list[str]:
-        return self._sessions().keys()
+        return sorted({self._name_of(k) for k in self._sessions().keys()})
 
     @staticmethod
     def _resolve_host(host: str) -> str:
@@ -373,29 +435,31 @@ class AviConnectionManager:
         else:
             _log.info("Connecting to AVI Controller: %s (%s)", ctrl.name, ctrl.host)
 
-        with _AVISDK_LOCK:
-            # Not ApiSession.get_session: it hands every caller the one object it
-            # caches per controller:username:port (see the class docstring).
-            session = ApiSession(
-                controller_ip=controller_ip,
-                username=ctrl.username,
-                password=ctrl.password,
-                api_version=ctrl.api_version,
-                tenant=ctrl.tenant,
-                port=ctrl.port,
-                # avisdk defaults verify=False; honour the configured flag so TLS
-                # verification (the documented default) is actually enforced.
-                verify=ctrl.verify_ssl,
-                lazy_authentication=True,  # log in below, under this session's own key
-            )
-            # avisdk keeps the login (CSRF token, session cookie) in its global
-            # sessionDict under self.key and reads it from there on every request;
-            # a key of its own makes this a login of its own.
-            session.key = f"{session.key}#vmware-avi-{next(_session_serial)}"
-            try:
-                session.authenticate_session()
-            except BaseException:
-                session.delete_session()
-                session.close()
-                raise
+        _install_cleanup()
+        # Not ApiSession.get_session: it hands every caller the one object it
+        # caches per controller:username:port (see the class docstring). No lock
+        # is held here: a login may retry for minutes against a dead Controller,
+        # and each session only ever touches its own sessionDict key.
+        session = ApiSession(
+            controller_ip=controller_ip,
+            username=ctrl.username,
+            password=ctrl.password,
+            api_version=ctrl.api_version,
+            tenant=ctrl.tenant,
+            port=ctrl.port,
+            # avisdk defaults verify=False; honour the configured flag so TLS
+            # verification (the documented default) is actually enforced.
+            verify=ctrl.verify_ssl,
+            lazy_authentication=True,  # log in below, under this session's own key
+        )
+        # avisdk keeps the login (CSRF token, session cookie) in its global
+        # sessionDict under self.key and reads it from there on every request;
+        # a key of its own makes this a login of its own.
+        session.key = f"{session.key}{_POOLED_KEY_MARK}{next(_session_serial)}"
+        try:
+            session.authenticate_session()
+        except BaseException:
+            session.delete_session()
+            session.close()
+            raise
         return session

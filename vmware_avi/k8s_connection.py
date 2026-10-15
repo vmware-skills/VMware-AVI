@@ -50,8 +50,9 @@ class K8sConnectionManager:
 
     _pool: ClassVar[SessionPool[_K8sSession] | None] = None
     _pool_lock: ClassVar[threading.Lock] = threading.Lock()
-    #: Context name -> the kubeconfig file its pooled clients are built from.
-    _kubeconfig_for: ClassVar[dict[str, str]] = {}
+    #: Pool key -> (context, kubeconfig file) its clients are built from. The key
+    #: names both, so it never changes meaning while calls overlap a config edit.
+    _kubeconfig_for: ClassVar[dict[str, tuple[str, str]]] = {}
 
     def __init__(self, ako_config: AkoConfig) -> None:
         self._config = ako_config
@@ -74,11 +75,11 @@ class K8sConnectionManager:
             return cls._pool
 
     @classmethod
-    def _create_for(cls, context: str) -> _K8sSession:
+    def _create_for(cls, key: str) -> _K8sSession:
         from kubernetes import config
 
         with cls._pool_lock:
-            kubeconfig = cls._kubeconfig_for[context]
+            context, kubeconfig = cls._kubeconfig_for[key]
         mtime = _mtime(kubeconfig)
         client = config.new_client_from_config(config_file=kubeconfig, context=context)
         _log.info("Connected to K8s (kubeconfig=%s, context=%s)", kubeconfig, context)
@@ -105,12 +106,13 @@ class K8sConnectionManager:
         """Get the Kubernetes API client for a context (the kubeconfig's current one if none)."""
         name, kubeconfig = self._resolve_context(context)
         pool = self._clients()
+        key = f"{name} ({kubeconfig})"
         with self._pool_lock:
-            before = self._kubeconfig_for.get(name)
-            self._kubeconfig_for[name] = kubeconfig
-        if before is not None and before != kubeconfig:
-            pool.discard(name)  # the config now points at another kubeconfig file
-        return pool.get(name).client
+            self._kubeconfig_for.setdefault(key, (name, kubeconfig))
+            stale = [k for k, (ctx, kc) in self._kubeconfig_for.items() if ctx == name and k != key]
+        for old in stale:
+            pool.discard(old)  # the config now points at another kubeconfig file
+        return pool.get(key).client
 
     def core_v1(self, context: str | None = None) -> CoreV1Api:
         from kubernetes.client import CoreV1Api

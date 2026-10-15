@@ -370,3 +370,147 @@ def test_pool_timeout_reaches_the_agent_with_its_remedy() -> None:
     )
     msg = _safe_error(err, "list_lb_pools")
     assert "VMWARE_MCP_POOL_SIZE" in msg and "'lab'" in msg
+
+
+# ── avisdk under concurrency (review 2026-10-15) ─────────────────────────
+
+
+def _fake_logins(
+    monkeypatch: pytest.MonkeyPatch, block: dict[str, threading.Event] | None = None
+) -> list:
+    """Answer avisdk's HTTP with fakes; a login to a host in ``block`` waits on its event."""
+    import requests
+    from avi.sdk import avi_api
+
+    monkeypatch.setattr(avi_api, "sessionDict", {})
+    monkeypatch.setenv("LAB_PASSWORD", "pw")
+    monkeypatch.setenv("PROD_PASSWORD", "pw")
+    calls: list = []
+    serial = itertools.count(1)
+
+    def post(self: Any, url: str, *a: Any, **k: Any) -> Any:
+        calls.append(url)
+        for host, event in (block or {}).items():
+            if host in url and url.endswith("/login"):
+                assert event.wait(_WAIT)
+        n = next(serial)
+        return SimpleNamespace(
+            status_code=200,
+            json=lambda: {"version": {}, "session_cookie_name": "sessionid"},
+            cookies={"csrftoken": f"csrf-{n}", "sessionid": f"sid-{n}"},
+        )
+
+    monkeypatch.setattr(requests.Session, "post", post)
+    return calls
+
+
+def test_a_slow_login_does_not_block_logins_to_other_controllers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import time
+
+    release = threading.Event()
+    _fake_logins(monkeypatch, block={"10.0.0.1": release})
+    slow = threading.Thread(
+        target=AviConnectionManager._create_session,
+        args=(ControllerConfig(name="lab", host="10.0.0.1"),),
+    )
+    slow.start()
+    try:
+        started = time.monotonic()
+        AviConnectionManager._create_session(ControllerConfig(name="prod", host="10.0.0.2"))
+        assert time.monotonic() - started < 1.0, "a login waited on another controller's login"
+    finally:
+        release.set()
+        slow.join(_WAIT)
+
+
+def test_avisdk_cleanup_leaves_idle_pooled_sessions_alone(monkeypatch: pytest.MonkeyPatch) -> None:
+    from datetime import datetime, timedelta
+
+    from avi.sdk import avi_api
+
+    calls = _fake_logins(monkeypatch)
+    idle = AviConnectionManager._create_session(ControllerConfig(name="lab", host="10.0.0.1"))
+    avi_api.sessionDict[idle.key]["last_used"] = datetime.utcnow() - timedelta(minutes=21)
+    other = MagicMock()
+    avi_api.sessionDict["10.0.0.3:admin:443"] = {
+        "api": other,
+        "last_used": datetime.utcnow() - timedelta(minutes=21),
+    }
+
+    AviConnectionManager._create_session(
+        ControllerConfig(name="prod", host="10.0.0.2")
+    )  # runs the cleanup
+
+    assert idle.key in avi_api.sessionDict, "the cleanup ended a session the pool still owns"
+    assert not any(url.endswith("/logout") for url in calls)
+    other.post.assert_called_once_with("logout")  # entries the pool does not own: as avisdk
+    assert "10.0.0.3:admin:443" not in avi_api.sessionDict
+
+
+def test_overlapping_config_edit_builds_each_call_from_its_own_config(
+    made: list[FakeSession], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A call holding the old config.yaml and one holding the new must not swap configs."""
+    built: dict[int, str] = {}
+
+    def factory(ctrl: ControllerConfig) -> FakeSession:
+        session = FakeSession(ctrl)
+        built[session.id] = ctrl.host
+        made.append(session)
+        return session
+
+    monkeypatch.setattr(AviConnectionManager, "_create_session", staticmethod(factory))
+    pool = AviConnectionManager._sessions()
+    original_get = pool.get
+    newer: dict[str, FakeSession] = {}
+
+    def get(key: str) -> FakeSession:
+        if not newer:  # the edited config arrives between this call's lookup and its login
+            t = threading.Thread(
+                target=lambda: newer.setdefault(
+                    "s",
+                    _run_calls(
+                        lambda: AviConnectionManager(_config(host="10.0.0.9")).connect("lab")
+                    )[0],
+                )
+            )
+            t.start()
+            t.join(_WAIT)
+        return original_get(key)
+
+    monkeypatch.setattr(pool, "get", get)
+    with call_scope():
+        old = AviConnectionManager(_config()).connect("lab")
+    assert built[old.id] == "10.0.0.1", "a call got a session built from another call's config"
+    assert built[newer["s"].id] == "10.0.0.9"
+
+
+def test_k8s_overlapping_kubeconfig_change_keeps_each_calls_file(
+    kube: SimpleNamespace, monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    other = tmp_path / "other-kubeconfig"
+    other.write_text("fake")
+    pool = K8sConnectionManager._clients()
+    original_get = pool.get
+    done: list[Any] = []
+
+    def get(key: str) -> Any:
+        if not done:  # a call on the new kubeconfig arrives between lookup and build
+            mgr = K8sConnectionManager(AkoConfig(kubeconfig=str(other)))
+            t = threading.Thread(
+                target=lambda: done.append(_run_calls(lambda: mgr.get_client("dev"))[0])
+            )
+            t.start()
+            t.join(_WAIT)
+        return original_get(key)
+
+    monkeypatch.setattr(pool, "get", get)
+    with call_scope():
+        mine = kube.mgr().get_client("dev")
+    files = {id(client): f for f, _, client in kube.built}
+    assert files[id(mine)] == str(kube.path), (
+        "a call got a client built from another call's kubeconfig"
+    )
+    assert files[id(done[0])] == str(other)
