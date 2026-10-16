@@ -1,3 +1,11 @@
+## v2.4.0 — roles for network callers (HLD §18)
+
+* Declares the role metadata vmware-policy ≥ 1.24.0 needs to apply **roles** to this server over HTTPS
+  (HLD §18): how a missing controller resolves, that tools without a `controller` argument act on the default controller, that the AKO tools act on a Kubernetes context (so a controller-limited role cannot use them), and that `diff_ako_config` and `upgrade_ako_config` escape a role (their Helm values can hold the controller password). With an older vmware-policy nothing changes. Once an operator runs
+  `vmware-audit roles enable`, a token's role decides which tools and targets it may use here; a refused call is
+  audited as `denied`. See vmware-policy's README, "Roles for network callers".
+* README and setup guide: one endpoint for several people or roles.
+
 ## v2.3.0 — calls run side by side
 
 **Calls no longer wait for each other** (HLD §16 D-13(2), via vmware-policy 1.22.0). When one server serves several
