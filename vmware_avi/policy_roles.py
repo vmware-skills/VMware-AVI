@@ -36,8 +36,9 @@ AKO_TOOLS = frozenset(
 )
 
 #: Tools that give their holder more than a role. The AKO config tools return Helm
-#: values that can hold the controller password. Host-path tools are added by policy
-#: while a file root is set.
+#: values that can hold the controller password. ``get_ako_config`` is not one: it
+#: redacts credential values and withholds output it cannot redact. Host-path tools
+#: are added by policy while a file root is set.
 ESCAPES = frozenset(
     {
         "diff_ako_config",
