@@ -1,3 +1,10 @@
+## Unreleased — error hints
+
+* **Error hints fit the error.** An error about the request itself (a 4xx other than 401/403, an unknown
+  controller) no longer tells the agent to run `doctor`, which would report green; an argument error that may
+  name no fix offers doctor only as a fallback. Connection, credential, 5xx and unparseable-response errors keep it.
+* Duration errors no longer point MCP callers at `vmware-avi analytics --help`; they list the accepted forms.
+
 ## v2.4.0 — roles for network callers (HLD §18)
 
 * Declares the role metadata vmware-policy ≥ 1.24.0 needs to apply **roles** to this server over HTTPS

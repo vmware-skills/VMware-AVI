@@ -111,6 +111,13 @@ def _hint_for_status(status_code: int, path: str) -> str:
             "Controller temporarily unavailable (gateway error) — retry "
             "shortly or check Controller health with: vmware-avi doctor"
         )
+    if 400 <= status_code < 500:
+        # The Controller answered and rejected this request: connectivity is
+        # fine, and doctor would report green (VMware-Monitor 2.4.1, same shape).
+        return (
+            "The Controller rejected the request — check this call's arguments "
+            "against the values its Args section allows, then retry."
+        )
     return (
         "Check the request parameters, then run 'vmware-avi doctor' to confirm the "
         "Controller is reachable and healthy."

@@ -127,6 +127,11 @@ def _check_env_permissions() -> None:
 _check_env_permissions()
 
 
+class UnknownControllerError(KeyError):
+    """A controller name that is not in config.yaml. A KeyError, as callers
+    expect, but its own type so the MCP hint can tell it from a programming slip."""
+
+
 class ConfigError(OSError):
     """A configuration problem the operator can fix, safe to show an agent.
 
@@ -208,7 +213,7 @@ class AppConfig:
             if c.name == name:
                 return c
         available = ", ".join(c.name for c in self.controllers)
-        raise KeyError(
+        raise UnknownControllerError(
             f"Controller '{name}' not found. Run 'vmware-avi config' to see the "
             "configured controllers, or add this one under 'controllers:' in "
             f"~/.vmware-avi/config.yaml. Available: {available}"

@@ -24,8 +24,7 @@ def _parse_duration_seconds(value: str | int) -> int:
         if value < 0:
             raise ValueError(
                 "duration must be non-negative. Pass whole seconds (e.g. 3600) or a "
-                "suffix form (e.g. '1h'). Run 'vmware-avi analytics --help' for the "
-                "accepted values."
+                "suffix form (e.g. '1h', '30m')."
             )
         return value
 
@@ -33,16 +32,14 @@ def _parse_duration_seconds(value: str | int) -> int:
     if not s:
         raise ValueError(
             "duration must be non-empty. Pass whole seconds (e.g. 3600) or a suffix "
-            "form (e.g. '1h', '30m'). Run 'vmware-avi analytics --help' for the "
-            "accepted values."
+            "form (e.g. '1h', '30m')."
         )
 
     m = re.fullmatch(r"(\d+)\s*([smhd]?)", s)
     if not m:
         raise ValueError(
             "invalid duration: expected whole seconds or a suffix form s/m/h/d "
-            "(e.g. '1h', '30m', '3600'). Run 'vmware-avi analytics --help' for the "
-            f"accepted values. Got: {value!r}"
+            f"(e.g. '1h', '30m', '3600'). Got: {value!r}"
         )
     n = int(m.group(1))
     unit = m.group(2) or "s"

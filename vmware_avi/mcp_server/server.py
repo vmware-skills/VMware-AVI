@@ -4,7 +4,10 @@ Exposes 28 tools (22 read, 6 write) for AVI Controller + AKO K8s operations.
 Entry point: vmware-avi-mcp (defined in pyproject.toml).
 """
 
+import json
 import logging
+import re
+import ssl
 import threading
 from contextvars import ContextVar
 from io import StringIO
@@ -21,7 +24,13 @@ from vmware_policy import (
 from vmware_policy.pool import PoolTimeoutError
 
 from vmware_avi import __version__
-from vmware_avi.config import CONFIG_FILE, ConfigError, load_config, resolve_config_path
+from vmware_avi.config import (
+    CONFIG_FILE,
+    ConfigError,
+    UnknownControllerError,
+    load_config,
+    resolve_config_path,
+)
 from vmware_avi.connection import AviApiError
 
 _log = logging.getLogger("vmware-avi-mcp")
@@ -137,6 +146,61 @@ mcp._mcp_server.version = __version__
 
 _DOCTOR_HINT = "Run 'vmware-avi doctor' to verify Controller connectivity and credentials."
 
+#: For an error about the request itself: the message already names the fix,
+#: and doctor would report green (same shape as VMware-Monitor 2.4.1).
+_FIX_IN_MESSAGE_HINT = "The error message says what to change; connectivity is not the problem."
+#: A ValueError's text is usually this skill's own remedy, but not always: one
+#: raised while parsing the server's answer names no fix. So it does not claim
+#: connectivity is fine (independent review, 2026-10-18).
+_CHECK_MESSAGE_HINT = (
+    "The error message should say what to change; if it names no fix, run "
+    "'vmware-avi doctor'."
+)
+
+#: ValueErrors whose text was not authored as a remedy: a body that was not JSON
+#: (a reverse proxy answering HTML) or not UTF-8, and TLS errors that subclass
+#: ValueError. Those are exactly what doctor checks.
+_UNAUTHORED_VALUE_ERRORS = (ssl.SSLError, json.JSONDecodeError, UnicodeError)
+
+
+def _is_request_error(exc: BaseException) -> bool:
+    """True when the Controller is reachable and the request itself is wrong.
+
+    A 4xx the Controller answered with (except 401/403, which are credentials),
+    an unknown controller name, and the ValueErrors this skill raises to reject
+    an argument. Transport failures (``AviApiError`` without a status), 5xx,
+    unparseable bodies and anything unplanned are not, and keep the doctor hint.
+    """
+    if isinstance(exc, AviApiError):
+        code = exc.status_code
+        return code is not None and 400 <= code < 500 and code not in (401, 403)
+    if isinstance(exc, UnknownControllerError):
+        return True
+    return isinstance(exc, ValueError) and not isinstance(exc, _UNAUTHORED_VALUE_ERRORS)
+
+
+def _hint_for(exc: BaseException) -> str:
+    if not _is_request_error(exc):
+        return _DOCTOR_HINT
+    if isinstance(exc, (AviApiError, UnknownControllerError)):
+        return _FIX_IN_MESSAGE_HINT
+    return _CHECK_MESSAGE_HINT
+
+
+def _names_a_remedy(text: str) -> bool:
+    """Whether an ops failure message already says what to run next.
+
+    The ops layer's not-found messages name the MCP tool to list with
+    (``list_lb_pools``), not a ``vmware-avi`` command, so checking for the CLI
+    name alone appended the doctor hint to every one of them.
+    """
+    if "vmware-avi" in text:
+        return True
+    # FastMCP keeps the registry private; if that ever moves, fall back to the
+    # doctor hint rather than replace the real error with an AttributeError.
+    tools = getattr(getattr(mcp, "_tool_manager", None), "_tools", None) or {}
+    return any(re.search(rf"\b{re.escape(name)}\b", text) for name in tools)
+
 
 def _safe_error(exc: Exception, tool: str) -> str:
     """Return an agent-safe error string; log full detail server-side only.
@@ -184,7 +248,7 @@ def _safe_error(exc: Exception, tool: str) -> str:
     return f"{type(exc).__name__}: operation failed."
 
 
-def _as_error(captured: str, detail: str = "") -> str:
+def _as_error(captured: str, detail: str = "", exc: Optional[BaseException] = None) -> str:
     """Render a failed run as a payload no reader can mistake for output.
 
     The ops layer reports failure the way a CLI does — print, then exit — so the
@@ -193,9 +257,12 @@ def _as_error(captured: str, detail: str = "") -> str:
     model receives a red "not found" message as an ordinary successful result
     and reports it to the user as a finding (issue #31's failure mode).
 
-    ``_DOCTOR_HINT`` is appended only when the captured text names nothing to
-    act on. When the ops message already says which tool to run, repeating a
-    generic "run doctor" would bury the specific advice under worse advice.
+    ``_DOCTOR_HINT`` is appended only when the failure is not about the request
+    and the text names nothing to act on. A request error (``exc`` a 4xx, an
+    unknown controller, a rejected argument) never gets it: connectivity is
+    fine there and doctor would report green. When the ops message already says
+    which tool to run, repeating a generic "run doctor" would bury the specific
+    advice under worse advice.
 
     Declaring the failure to ``@vmware_tool`` happens here rather than at the two
     catch sites, because this is the one function both of them render through and
@@ -210,8 +277,15 @@ def _as_error(captured: str, detail: str = "") -> str:
     body = " ".join((captured or "").split()) or detail
     if detail and detail not in body:
         body = f"{body} {detail}".strip()
-    if "vmware-avi" not in body:
-        body = f"{body} {_DOCTOR_HINT}".strip()
+    if exc is None:
+        hint = None if _names_a_remedy(body) else _DOCTOR_HINT
+    elif "vmware-avi" in body:
+        hint = None
+    else:
+        hint = _hint_for(exc)
+        hint = None if hint == _FIX_IN_MESSAGE_HINT else hint
+    if hint:
+        body = f"{body} {hint}".strip()
     report_tool_failure(body)
     return f"Error: {body}"
 
@@ -272,7 +346,7 @@ def _capture_output(func, *args, **kwargs) -> str:
         if exc.code:
             return _as_error(buf.getvalue())
     except Exception as exc:  # noqa: BLE001 — reduced to a safe string below
-        return _as_error(buf.getvalue(), _safe_error(exc, getattr(func, "__name__", "?")))
+        return _as_error(buf.getvalue(), _safe_error(exc, getattr(func, "__name__", "?")), exc)
     finally:
         _capture_target.reset(token)
 
@@ -295,7 +369,7 @@ def _gated(tool: str, deprecated: Optional[str], run) -> dict:
         _log.info("Tool %s refused: %s", tool, exc)
         out = {"error": sanitize(str(exc), 1000), "blast_radius": exc.blast_radius}
     except Exception as exc:  # noqa: BLE001 — reduced to a safe string by _safe_error
-        out = {"error": _safe_error(exc, tool), "hint": _DOCTOR_HINT}
+        out = {"error": _safe_error(exc, tool), "hint": _hint_for(exc)}
     return {**out, "deprecated": deprecated} if deprecated else out
 
 
