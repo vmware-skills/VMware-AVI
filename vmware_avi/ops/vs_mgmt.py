@@ -68,7 +68,8 @@ def show_vs_status(name: str) -> None:
         inv_resp = api_get(session, f"virtualservice-inventory/{uuid}")
         inventory = inv_resp.json() if hasattr(inv_resp, "json") else inv_resp or {}
     except Exception as exc:  # noqa: BLE001 — shown below as "could not be read"
-        runtime_unread = type(exc).__name__
+        status = getattr(exc, "status_code", None) or getattr(exc, "status", None)
+        runtime_unread = f"HTTP {status}" if status else type(exc).__name__
 
     runtime = inventory.get("runtime", {}) or {}
     oper_status = runtime.get("oper_status", {}) or {}

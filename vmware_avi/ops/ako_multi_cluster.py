@@ -41,6 +41,15 @@ def list_clusters() -> None:
         raise SystemExit(1)
 
     contexts = [c.strip() for c in result.stdout.strip().split("\n") if c.strip()]
+    if not contexts:
+        # kubectl exits 0 with nothing when KUBECONFIG points at a missing file or
+        # one with no contexts: an empty overview would read as "no clusters".
+        console.print(
+            "[red]There are no kube-contexts in the active kubeconfig, so no cluster could "
+            "be checked. Point KUBECONFIG (or ~/.kube/config) at a kubeconfig with "
+            "contexts: kubectl config get-contexts[/red]"
+        )
+        raise SystemExit(1)
 
     table = Table(title="AKO Cluster Overview")
     table.add_column("Context")
@@ -51,7 +60,7 @@ def list_clusters() -> None:
     # distinct API server, so there is no single bulk query. We keep it, but
     # isolate each probe — a per-context timeout, and no exception is allowed to
     # abort the whole overview if one cluster is unreachable/slow.
-    unread: list[str] = []
+    unread: list[tuple[str, str]] = []
     for ctx in contexts:
         try:
             pod_check = subprocess.run(
@@ -88,7 +97,10 @@ def list_clusters() -> None:
             parts = first.split(":", 1)
             phase = parts[0] if parts else "Unknown"
             image = parts[1] if len(parts) > 1 else "N/A"
-            version = image.split(":")[-1] if ":" in image else "latest"
+            # The tag follows the last ':' after the last '/': "reg:5000/ako" has
+            # no tag (a registry port is not a version).
+            last = image.rsplit("/", 1)[-1]
+            version = last.rsplit(":", 1)[1] if ":" in last else "latest"
             status_color = "green" if phase == "Running" else "red"
             table.add_row(escape(ctx), f"[{status_color}]{escape(phase)}[/{status_color}]",
                           escape(version))
@@ -97,9 +109,12 @@ def list_clusters() -> None:
 
     console.print(table)
     for ctx, cause in unread:
-        # kubectl's own words, so RBAC, a dead API server and a bad kubeconfig differ.
+        # kubectl's own words, so RBAC, a dead API server and a bad kubeconfig differ —
+        # its last line: a dead server first prints several discovery retries.
+        last_line = next((ln for ln in reversed((cause or "").splitlines()) if ln.strip()), "")
         print_command_failure(
-            console, f"[yellow]Context '{escape(ctx)}' could not be read. Cause:[/yellow]", cause
+            console, f"[yellow]Context '{escape(ctx)}' could not be read. Cause:[/yellow]",
+            last_line[:300],
         )
     if unread:
         console.print(

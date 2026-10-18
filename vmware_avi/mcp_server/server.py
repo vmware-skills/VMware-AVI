@@ -416,8 +416,9 @@ def get_virtual_service_status(name: str) -> str:
     connections, throughput.
 
     Returns one detail block, not a list. Use list_virtual_services first for the exact name —
-    a name that does not match exactly fails. Then get_virtual_service_analytics for metrics,
-    get_virtual_service_error_logs for 5xx.
+    a name that does not match exactly fails. If the runtime read fails, the block says so
+    (with the HTTP status) and health is UNKNOWN. Then get_virtual_service_analytics for
+    metrics, get_virtual_service_error_logs for 5xx.
 
     Args:
         name: Exact Virtual Service name.
@@ -662,7 +663,9 @@ def check_ssl_cert_expiry(days: int = 30) -> str:
 
     Returns name, expiry date and days remaining, soonest first. Use this
     instead of list_ssl_certs when you only want certificates near expiry. Expired
-    certs are included, with negative days remaining.
+    certs are included, with negative days remaining. Certificates whose expiry
+    could not be read are counted and named separately — they are unknown, not
+    "not expiring".
 
     Args:
         days: Report certs expiring within this many days (default 30).
@@ -1076,8 +1079,10 @@ def diagnose_ako_ingress(
     """[READ] Diagnose why one Ingress has no corresponding AVI Virtual Service.
 
     Validates IngressClass ('avi'/'avi-lb'), TLS secrets and backend Services.
-    Returns annotations, a numbered issue list and kubectl fixes. Use
-    list_ako_ingresses first to find Ingresses lacking a VS. Checks configuration
+    Returns annotations, a numbered issue list and kubectl fixes. "Not
+    found"/"missing" is reported only for a 404; any other error reading the
+    Ingress, a TLS secret or a backend Service says it could not be read (with
+    the HTTP status). Use list_ako_ingresses first to find Ingresses lacking a VS. Checks configuration
     only; when it is clean, try get_ako_logs and get_ako_sync_status.
 
     Args:

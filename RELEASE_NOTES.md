@@ -10,11 +10,14 @@
   reason; "not deployed" means kubectl answered and found no AMKO pods. A GSLBConfig that cannot be read is said,
   not skipped. `list_ako_clusters` shows a context kubectl could not read as "Unreadable", not "Not deployed" (its
   pod query no longer errors on an empty list), with kubectl's reason, says how many contexts are unknown, and
-  fails when none could be read. `diagnose_ako_ingress` reports "not found"/"missing" only for a 404; a 403 or a
+  fails when none could be read, or when the kubeconfig has no contexts at all (kubectl exits 0 with nothing). An
+  image behind a registry port without a tag (`reg:5000/ako`) shows version `latest`, not `5000/ako`. `diagnose_ako_ingress` reports "not found"/"missing" only for a 404; a 403 or a
   dropped connection is "could not be read", for the Ingress, each backend Service and each TLS secret.
 * Same shape elsewhere: `check_ssl_cert_expiry` counts and names certificates whose expiry could not be read
   (they used to drop out of the tally, reading as "not expiring"); unparseable `helm list` output is reported as
-  such, not as "No AKO Helm release found"; `get_virtual_service_status` says when the runtime read failed.
+  such, not as "No AKO Helm release found"; `get_virtual_service_status` says when the runtime read failed, with
+  the HTTP status. Certificate names and context names are shown as text, not Rich markup (a `[/]` in a name used
+  to fail the whole call).
 
 ## v2.4.0 — roles for network callers (HLD §18)
 

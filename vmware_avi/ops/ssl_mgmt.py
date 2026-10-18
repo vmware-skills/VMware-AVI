@@ -31,11 +31,12 @@ def list_certificates() -> None:
 
     for cert in certs:
         name = sanitize(cert.get("name", ""))
-        cert_info = cert.get("certificate", {})
-        subject = sanitize(cert_info.get("subject", {}).get("common_name", "N/A"))
+        cert_info = cert.get("certificate", {}) or {}
+        subject = sanitize((cert_info.get("subject", {}) or {}).get("common_name", "N/A"))
         not_after = cert_info.get("not_after", "N/A")
         cert_type = cert.get("type", "N/A")
-        table.add_row(name, subject, not_after, cert_type)
+        table.add_row(escape(name), escape(subject), escape(str(not_after)),
+                      escape(str(cert_type)))
 
     console.print(table)
     console.print(f"  Total: {len(certs)} certificate(s)")
@@ -89,7 +90,10 @@ def check_expiry(days: int = 30) -> None:
 
     for e in sorted(expiring, key=lambda x: x["days_left"]):
         style = "red" if e["days_left"] < 0 else "yellow"
-        table.add_row(e["name"], e["not_after"], f"[{style}]{e['days_left']}[/{style}]")
+        table.add_row(
+            escape(sanitize(e["name"])), escape(sanitize(str(e["not_after"]))),
+            f"[{style}]{e['days_left']}[/{style}]",
+        )
 
     console.print(table)
     console.print(f"  {len(expiring)} certificate(s) expiring within {days} days.")
@@ -97,5 +101,6 @@ def check_expiry(days: int = 30) -> None:
         console.print(
             f"  [yellow]{len(unread)} certificate(s) whose expiry could not be read (missing or "
             f"unrecognised not_after), so they are not in the count above: "
-            f"{escape(', '.join(unread[:20]))}[/yellow]"
+            f"{escape(', '.join(n or '(unnamed)' for n in unread[:20]))}"
+            f"{f' and {len(unread) - 20} more' if len(unread) > 20 else ''}[/yellow]"
         )

@@ -302,3 +302,162 @@ def test_a_tls_secret_read_that_is_forbidden_is_not_missing():
         out, _ = _capture(ako_ingress, ako_ingress.diagnose_ingress, "web", "default")
     assert "TLS secret 'tls-web' missing" not in out
     assert "TLS secret 'tls-web' could not be read" in out and "403" in out
+
+
+# ── narrow re-review of 8237a0e ──────────────────────────────────────────
+
+
+@pytest.mark.unit
+def test_no_kube_contexts_at_all_is_said_and_fails():
+    """kubectl exits 0 with nothing when KUBECONFIG points nowhere."""
+    with patch.object(amc.subprocess, "run", return_value=_EMPTY):
+        out, exited = _capture(amc, amc.list_clusters)
+    assert exited is not None and exited.code
+    assert "no kube-contexts" in out.lower()
+
+
+@pytest.mark.unit
+def test_expiring_certificate_names_are_not_markup():
+    import vmware_avi.ops.ssl_mgmt as ssl_mgmt
+
+    certs = [{"name": "exp[/]ing", "certificate": {"not_after": "2000-01-01 00:00:00"}}]
+    with patch.object(ssl_mgmt, "load_config", return_value=MagicMock()), \
+         patch.object(ssl_mgmt, "AviConnectionManager"), \
+         patch.object(ssl_mgmt, "api_get_all", return_value=certs):
+        out, _ = _capture(ssl_mgmt, ssl_mgmt.check_expiry, 30)
+    assert "exp[/]ing" in out
+
+
+@pytest.mark.unit
+def test_a_long_unread_list_says_how_many_more():
+    import vmware_avi.ops.ssl_mgmt as ssl_mgmt
+
+    certs = [{"name": f"c{i}", "certificate": {}} for i in range(27)]
+    with patch.object(ssl_mgmt, "load_config", return_value=MagicMock()), \
+         patch.object(ssl_mgmt, "AviConnectionManager"), \
+         patch.object(ssl_mgmt, "api_get_all", return_value=certs):
+        out, _ = _capture(ssl_mgmt, ssl_mgmt.check_expiry, 30)
+    assert "and 7 more" in out
+
+
+@pytest.mark.unit
+def test_an_unreadable_context_shows_only_kubectls_last_line():
+    noisy = SimpleNamespace(returncode=1, stdout="", stderr=(
+        "E1018 memcache.go:265] couldn't get current server API group list\n" * 5
+        + "The connection to the server 127.0.0.1:1 was refused\n"))
+    with patch.object(amc.subprocess, "run", side_effect=[_contexts("a", "b"), noisy, _EMPTY]):
+        out, _ = _capture(amc, amc.list_clusters)
+    assert "was refused" in out and "memcache.go" not in out
+
+
+@pytest.mark.unit
+def test_the_runtime_failure_names_the_http_status():
+    import vmware_avi.ops.vs_mgmt as vs_mgmt
+
+    class _StatusError(Exception):
+        status_code = 404
+
+    session = MagicMock()
+    session.get_object_by_name.return_value = {"name": "web", "uuid": "u-1", "vip": []}
+    mgr = MagicMock()
+    mgr.connect.return_value = session
+    with patch.object(vs_mgmt, "load_config", return_value=MagicMock()), \
+         patch.object(vs_mgmt, "AviConnectionManager", return_value=mgr), \
+         patch.object(vs_mgmt, "api_get", side_effect=_StatusError("not here")):
+        out, _ = _capture(vs_mgmt, vs_mgmt.show_vs_status, "web")
+    assert "404" in out
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("image,version", [
+    ("projects.registry/ako:1.12.1", "1.12.1"),
+    ("reg:5000/ako", "latest"),
+    ("reg:5000/ako:1.13.0", "1.13.0"),
+])
+def test_an_image_version_is_the_tag_not_a_registry_port(image, version):
+    running = SimpleNamespace(returncode=0, stdout=f"Running:{image}\n", stderr="")
+    with patch.object(amc.subprocess, "run", side_effect=[_contexts("prod"), running]):
+        out, _ = _capture(amc, amc.list_clusters)
+    assert version in out
+    if version == "latest":
+        assert "5000/ako" not in out
+
+
+@pytest.mark.unit
+def test_list_certificates_tolerates_a_null_certificate():
+    import vmware_avi.ops.ssl_mgmt as ssl_mgmt
+
+    with patch.object(ssl_mgmt, "load_config", return_value=MagicMock()), \
+         patch.object(ssl_mgmt, "AviConnectionManager"), \
+         patch.object(ssl_mgmt, "api_get_all", return_value=[{"name": "x", "certificate": None}]):
+        out, exited = _capture(ssl_mgmt, ssl_mgmt.list_certificates)
+    assert exited is None and "x" in out
+
+
+# ── the jsonpath against real kubectl and a real PodList ─────────────────
+
+
+def _fake_api(pods: list[dict]):
+    """A minimal Kubernetes API (discovery + one pod list) on 127.0.0.1."""
+    import json
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    pod_list = {"kind": "PodList", "apiVersion": "v1", "metadata": {}, "items": pods}
+    routes = {
+        "/api": {"kind": "APIVersions", "versions": ["v1"], "serverAddressByClientCIDRs": []},
+        "/apis": {"kind": "APIGroupList", "apiVersion": "v1", "groups": []},
+        "/api/v1": {"kind": "APIResourceList", "groupVersion": "v1", "resources": [
+            {"name": "pods", "singularName": "pod", "namespaced": True, "kind": "Pod",
+             "verbs": ["get", "list"], "shortNames": ["po"]}]},
+        "/api/v1/namespaces/avi-system/pods": pod_list,
+    }
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):  # noqa: N802 — http.server's name
+            body = routes.get(self.path.split("?")[0])
+            self.send_response(200 if body is not None else 404)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps(body or {"kind": "Status", "code": 404}).encode())
+
+        def log_message(self, *args):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("pods,expected", [
+    ([{"status": {"phase": "Running"}, "spec": {"containers": [{"image": "reg/ako:1.12.1"}]}},
+      {"status": {"phase": "Pending"}, "spec": {"containers": [{"image": "reg/ako:1.12.2"}]}}],
+     "Running:reg/ako:1.12.1\nPending:reg/ako:1.12.2\n"),
+    ([], ""),
+], ids=["two-pods", "empty"])
+def test_the_jsonpath_prints_one_line_per_pod_with_real_kubectl(tmp_path, pods, expected):
+    import shutil
+    import subprocess
+
+    kubectl = shutil.which("kubectl")
+    if kubectl is None:
+        pytest.skip("kubectl not on PATH")
+    server = _fake_api(pods)
+    try:
+        kubeconfig = tmp_path / "config"
+        kubeconfig.write_text(
+            "apiVersion: v1\nkind: Config\ncurrent-context: t\n"
+            f"clusters:\n- name: t\n  cluster:\n    server: http://127.0.0.1:{server.server_port}\n"
+            "contexts:\n- name: t\n  context:\n    cluster: t\n    user: t\n"
+            "users:\n- name: t\n  user: {}\n", encoding="utf-8")
+        r = subprocess.run(
+            [kubectl, "get", "pods", "-n", "avi-system", "-l", "app.kubernetes.io/name=ako",
+             "-o", amc._AKO_POD_JSONPATH],
+            capture_output=True, text=True, timeout=30,
+            env={"PATH": "/usr/bin:/bin", "KUBECONFIG": str(kubeconfig), "HOME": str(tmp_path)},
+        )
+    finally:
+        server.shutdown()
+    assert r.returncode == 0, r.stderr
+    assert r.stdout == expected
