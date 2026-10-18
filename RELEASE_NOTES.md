@@ -5,6 +5,14 @@
   name no fix offers doctor only as a fallback. Connection, credential, 5xx and unparseable-response errors keep it.
 * Duration errors no longer point MCP callers at `vmware-avi analytics --help`; they list the accepted forms.
 
+* **A failed Kubernetes read is a failure, not "nothing there".** With no reachable cluster, `get_ako_amko_status`
+  answered "AMKO not deployed in avi-system namespace." — kubectl had failed. It now fails the call with kubectl's
+  reason; "not deployed" means kubectl answered and found no AMKO pods. A GSLBConfig that cannot be read is said,
+  not skipped. `list_ako_clusters` shows a context kubectl could not read as "Unreadable", not "Not deployed" (its
+  pod query no longer errors on an empty list), and says how many contexts are unknown. `diagnose_ako_ingress`
+  reports "not found" only for a 404; a 403 or a dropped connection is "could not be read", for the Ingress and
+  for each backend Service.
+
 ## v2.4.0 — roles for network callers (HLD §18)
 
 * Declares the role metadata vmware-policy ≥ 1.24.0 needs to apply **roles** to this server over HTTPS

@@ -41,6 +41,7 @@ def list_clusters() -> None:
     # distinct API server, so there is no single bulk query. We keep it, but
     # isolate each probe — a per-context timeout, and no exception is allowed to
     # abort the whole overview if one cluster is unreachable/slow.
+    unread: list[str] = []
     for ctx in contexts:
         try:
             pod_check = subprocess.run(
@@ -55,7 +56,10 @@ def list_clusters() -> None:
                     "-l",
                     "app.kubernetes.io/name=ako",
                     "-o",
-                    "jsonpath={.items[0].status.phase}:{.items[0].spec.containers[0].image}",
+                    # range, not {.items[0]...}: that errors on an empty list, which
+                    # made "no AKO pods" and "kubectl failed" look the same.
+                    'jsonpath={range .items[*]}{.status.phase}:{.spec.containers[0].image}'
+                    '{"\n"}{end}',
                 ],
                 capture_output=True,
                 text=True, encoding="utf-8",
@@ -63,9 +67,16 @@ def list_clusters() -> None:
             )
         except (subprocess.TimeoutExpired, OSError):
             table.add_row(ctx, "[red]Unreachable[/red]", "-")
+            unread.append(ctx)
             continue
-        if pod_check.returncode == 0 and pod_check.stdout:
-            parts = pod_check.stdout.split(":", 1)
+        if pod_check.returncode != 0:
+            # kubectl could not read this context: unknown, not "not deployed".
+            table.add_row(ctx, f"[red]Unreadable (kubectl exit {pod_check.returncode})[/red]", "-")
+            unread.append(ctx)
+            continue
+        first = next((ln for ln in pod_check.stdout.splitlines() if ln.strip()), "")
+        if first:
+            parts = first.split(":", 1)
             phase = parts[0] if parts else "Unknown"
             image = parts[1] if len(parts) > 1 else "N/A"
             version = image.split(":")[-1] if ":" in image else "latest"
@@ -75,6 +86,13 @@ def list_clusters() -> None:
             table.add_row(ctx, "[dim]Not deployed[/dim]", "-")
 
     console.print(table)
+    if unread:
+        console.print(
+            f"[yellow]{len(unread)} context(s) could not be read ({', '.join(unread)}); "
+            "whether AKO runs there is unknown. Check each with: kubectl --context <ctx> "
+            "get pods -n avi-system[/yellow]",
+            markup=True,
+        )
 
 
 def show_amko_status() -> None:
@@ -82,7 +100,7 @@ def show_amko_status() -> None:
     # Official AMKO chart labels pods `app.kubernetes.io/name=amko`; fall
     # back to the legacy bare `app=amko` selector (same dual-selector
     # pattern as ako_pod._get_ako_pod_name).
-    result = None
+    results = []
     for selector in ("app.kubernetes.io/name=amko", "app=amko"):
         result = subprocess.run(
             [
@@ -100,14 +118,28 @@ def show_amko_status() -> None:
             text=True, encoding="utf-8",
             timeout=30,
         )
+        results.append(result)
         if result.returncode == 0 and result.stdout.strip():
             break
 
     console.print("\n[bold]AMKO Status[/bold]\n")
-    if result.returncode != 0 or not result.stdout.strip():
-        console.print("  [dim]AMKO not deployed in avi-system namespace.[/dim]")
+    last = results[-1]
+    failed = [r for r in results if r.returncode != 0]
+    if last.returncode == 0 and last.stdout.strip():
+        print_external(console, last.stdout, max_len=4000)
+    elif failed:
+        # "Not deployed" needs kubectl to have answered every query; a failed
+        # query (no reachable cluster, no kubeconfig) means nothing is known.
+        print_command_failure(
+            console,
+            "[red]Could not read AMKO pods: kubectl failed, so whether AMKO is deployed is "
+            "unknown. Check the kube-context and KUBECONFIG: kubectl get pods -n "
+            "avi-system. Cause:[/red]",
+            failed[0].stderr,
+        )
+        raise SystemExit(1)
     else:
-        print_external(console, result.stdout, max_len=4000)
+        console.print("  [dim]AMKO not deployed in avi-system namespace.[/dim]")
 
     gslb_check = subprocess.run(
         ["kubectl", "get", "gslbconfig", "-n", "avi-system", "-o", "yaml"],
@@ -115,7 +147,14 @@ def show_amko_status() -> None:
         text=True, encoding="utf-8",
         timeout=30,
     )
-    if gslb_check.returncode == 0 and gslb_check.stdout.strip():
+    if gslb_check.returncode != 0:
+        print_command_failure(
+            console,
+            "[yellow]Could not read GSLBConfig (kubectl get gslbconfig -n avi-system); the "
+            "AMKO CRDs may be missing or access denied. Cause:[/yellow]",
+            gslb_check.stderr,
+        )
+    elif gslb_check.stdout.strip():
         console.print("\n[bold]GSLBConfig:[/bold]\n")
         # The one writer in this package that printed a command's stdout with a
         # bare console.print: no redaction, no sanitize, no markup=False. A

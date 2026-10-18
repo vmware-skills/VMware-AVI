@@ -101,6 +101,21 @@ def show_ingress_map(context: str | None = None) -> None:
     console.print(table)
 
 
+def _status(exc: BaseException) -> int | None:
+    """The HTTP status of a kubernetes ``ApiException``, else None."""
+    status = getattr(exc, "status", None)
+    return status if isinstance(status, int) else None
+
+
+def _describe(exc: BaseException) -> str:
+    """One short, markup-safe line for an error reading a Kubernetes object."""
+    from rich.markup import escape
+
+    status = _status(exc)
+    reason = getattr(exc, "reason", None) or type(exc).__name__
+    return escape(f"HTTP {status} {reason}" if status else str(reason))[:120]
+
+
 def diagnose_ingress(name: str, namespace: str = "default", context: str | None = None) -> None:
     """Deep diagnosis of a specific Ingress."""
     cfg = load_config()
@@ -112,12 +127,21 @@ def diagnose_ingress(name: str, namespace: str = "default", context: str | None 
 
     try:
         ing = net_v1.read_namespaced_ingress(name, namespace)
-    except Exception:
-        console.print(
-            f"[red]Ingress '{name}' not found in namespace '{namespace}'. Run "
-            "list_ako_ingresses to list the Ingresses AKO manages, or check the namespace "
-            f"with: kubectl get ingress -n {namespace}[/red]"
-        )
+    except Exception as exc:
+        if _status(exc) == 404:
+            console.print(
+                f"[red]Ingress '{name}' not found in namespace '{namespace}'. Run "
+                "list_ako_ingresses to list the Ingresses AKO manages, or check the "
+                f"namespace with: kubectl get ingress -n {namespace}[/red]"
+            )
+        else:
+            # A 403 or a dropped connection says nothing about whether it exists.
+            console.print(
+                f"[red]Could not read Ingress '{name}' in namespace '{namespace}' "
+                f"({_describe(exc)}). Check the kube-context and its RBAC: kubectl get "
+                f"ingress {name} -n {namespace}[/red]",
+                markup=True,
+            )
         raise SystemExit(1)
 
     console.print(f"\n[bold]Diagnosing Ingress: {namespace}/{name}[/bold]\n")
@@ -176,11 +200,21 @@ def diagnose_ingress(name: str, namespace: str = "default", context: str | None 
                     svc_name = path.backend.service.name
                     try:
                         k8s.core_v1(context).read_namespaced_service(svc_name, namespace)
-                    except Exception:
-                        issues.append(f"Backend service '{svc_name}' not found")
-                        suggestions.append(
-                            f"Verify service '{svc_name}' exists in namespace '{namespace}'"
-                        )
+                    except Exception as exc:
+                        if _status(exc) == 404:
+                            issues.append(f"Backend service '{svc_name}' not found")
+                            suggestions.append(
+                                f"Verify service '{svc_name}' exists in namespace '{namespace}'"
+                            )
+                        else:
+                            issues.append(
+                                f"Backend service '{svc_name}' could not be read "
+                                f"({_describe(exc)})"
+                            )
+                            suggestions.append(
+                                f"Check RBAC and connectivity: kubectl get service {svc_name} "
+                                f"-n {namespace}"
+                            )
 
     if issues:
         console.print(f"\n[red]Issues Found ({len(issues)}):[/red]")
