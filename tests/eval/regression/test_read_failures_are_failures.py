@@ -206,7 +206,7 @@ def test_kubectl_accepts_the_pod_jsonpath(tmp_path):
     r = subprocess.run(
         [kubectl, "create", "configmap", "probe", "--dry-run=client",
          "-o", amc._AKO_POD_JSONPATH],
-        capture_output=True, text=True, timeout=30,
+        capture_output=True, text=True, encoding="utf-8", timeout=30,
         env={"PATH": "/usr/bin:/bin", "KUBECONFIG": str(tmp_path / "none"), "HOME": str(tmp_path)},
     )
     assert r.returncode == 0, r.stderr
@@ -454,7 +454,7 @@ def test_the_jsonpath_prints_one_line_per_pod_with_real_kubectl(tmp_path, pods, 
         r = subprocess.run(
             [kubectl, "get", "pods", "-n", "avi-system", "-l", "app.kubernetes.io/name=ako",
              "-o", amc._AKO_POD_JSONPATH],
-            capture_output=True, text=True, timeout=30,
+            capture_output=True, text=True, encoding="utf-8", timeout=30,
             env={"PATH": "/usr/bin:/bin", "KUBECONFIG": str(kubeconfig), "HOME": str(tmp_path)},
         )
     finally:
