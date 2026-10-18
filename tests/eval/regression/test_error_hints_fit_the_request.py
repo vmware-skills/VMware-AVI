@@ -153,12 +153,24 @@ def test_a_raised_request_error_gets_no_doctor_hint(op, exc) -> None:
 
 @pytest.mark.unit
 def test_a_raised_unknown_controller_gets_no_doctor_hint(op) -> None:
-    exc = _unknown_controller()
+    """Classified by its type, not by the CLI name in its text.
+
+    The real message says "Run 'vmware-avi config'", which the pre-fix check
+    (``"vmware-avi" in body``) already read as a remedy, so raising it as-is
+    passed on the old code too. Same type, text without the CLI name: the old
+    code appends the doctor hint, the fix does not.
+    """
+    real = _unknown_controller()
+    exc = type(real)("Controller 'nope' not found. Available: lab")
+    assert "vmware-avi" not in str(exc)
 
     def failing():
         raise exc
 
-    assert "doctor" not in srv._capture_output(op(failing))
+    out = srv._capture_output(op(failing))
+    assert out.startswith("Error:")
+    assert "not found" in out
+    assert "doctor" not in out
 
 
 @pytest.mark.unit
