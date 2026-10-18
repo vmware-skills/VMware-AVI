@@ -63,11 +63,12 @@ def show_vs_status(name: str) -> None:
     # Fetch runtime via inventory endpoint (consolidated config + runtime).
     # Fall back gracefully if endpoint is unavailable on this Controller.
     inventory: dict = {}
+    runtime_unread = ""
     try:
         inv_resp = api_get(session, f"virtualservice-inventory/{uuid}")
         inventory = inv_resp.json() if hasattr(inv_resp, "json") else inv_resp or {}
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001 — shown below as "could not be read"
+        runtime_unread = type(exc).__name__
 
     runtime = inventory.get("runtime", {}) or {}
     oper_status = runtime.get("oper_status", {}) or {}
@@ -76,6 +77,11 @@ def show_vs_status(name: str) -> None:
     console.print(f"\n[bold]{_sanitize(vs['name'])}[/bold]")
     console.print(f"  Enabled:   {vs.get('enabled', True)}")
     console.print(f"  UUID:      {uuid or 'N/A'}")
+    if runtime_unread:
+        console.print(
+            f"  [yellow]Runtime (health, traffic) could not be read ({runtime_unread}); the "
+            "values below that depend on it are unknown, not zero.[/yellow]"
+        )
 
     # VIP(s) — VS can have multiple VIPs (IPv4/IPv6)
     vips = vs.get("vip", [])

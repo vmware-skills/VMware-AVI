@@ -1204,9 +1204,11 @@ def list_ako_clusters() -> str:
     """[READ] List every Kubernetes context in the active kubeconfig and whether
     AKO is deployed there.
 
-    Returns Context, AKO Status (pod phase or 'Not deployed') and Version per
-    context. Requires kubectl on PATH; every context is probed, so unreachable
-    clusters add latency. Start here for context names, then pass one to
+    Returns Context, AKO Status (pod phase, 'Not deployed' when kubectl answered
+    with no AKO pods, or 'Unreachable'/'Unreadable' with kubectl's reason when it
+    could not read the context — unknown, not absent) and Version per context. Fails
+    when no context could be read. Requires kubectl on PATH; every context is
+    probed, so unreachable clusters add latency. Start here for context names, then pass one to
     get_ako_status, get_ako_logs or diagnose_ako_ingress.
     """
     from vmware_avi.ops.ako_multi_cluster import list_clusters
@@ -1227,8 +1229,11 @@ def get_ako_amko_status() -> str:
     """[READ] AMKO (AVI Multi-Cluster Kubernetes Operator) GSLB status.
 
     Returns raw kubectl output: the AMKO pods in avi-system, then the GSLBConfig
-    YAML if one exists. Use this only for multi-cluster GSLB questions — for
-    single-cluster AKO health use get_ako_status instead. Always reads the current
+    YAML if one exists. 'AMKO not deployed' means kubectl answered and found no
+    AMKO pods; if kubectl cannot read the cluster the call fails with its reason.
+    A GSLBConfig that cannot be read is reported, not skipped. Use this only for
+    multi-cluster GSLB questions — for single-cluster AKO health use
+    get_ako_status instead. Always reads the current
     kubectl context; see list_ako_clusters."""
     from vmware_avi.ops.ako_multi_cluster import show_amko_status
 

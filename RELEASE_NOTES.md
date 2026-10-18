@@ -9,9 +9,12 @@
   answered "AMKO not deployed in avi-system namespace." — kubectl had failed. It now fails the call with kubectl's
   reason; "not deployed" means kubectl answered and found no AMKO pods. A GSLBConfig that cannot be read is said,
   not skipped. `list_ako_clusters` shows a context kubectl could not read as "Unreadable", not "Not deployed" (its
-  pod query no longer errors on an empty list), and says how many contexts are unknown. `diagnose_ako_ingress`
-  reports "not found" only for a 404; a 403 or a dropped connection is "could not be read", for the Ingress and
-  for each backend Service.
+  pod query no longer errors on an empty list), with kubectl's reason, says how many contexts are unknown, and
+  fails when none could be read. `diagnose_ako_ingress` reports "not found"/"missing" only for a 404; a 403 or a
+  dropped connection is "could not be read", for the Ingress, each backend Service and each TLS secret.
+* Same shape elsewhere: `check_ssl_cert_expiry` counts and names certificates whose expiry could not be read
+  (they used to drop out of the tally, reading as "not expiring"); unparseable `helm list` output is reported as
+  such, not as "No AKO Helm release found"; `get_virtual_service_status` says when the runtime read failed.
 
 ## v2.4.0 — roles for network callers (HLD §18)
 

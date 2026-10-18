@@ -55,7 +55,16 @@ def _find_ako_release(namespace: str) -> str:
     try:
         releases = json.loads(result.stdout or "[]")
     except json.JSONDecodeError:
-        releases = []
+        releases = None
+    if not isinstance(releases, list):
+        # Unparseable output says nothing about whether an AKO release exists.
+        _print_helm_failure(
+            f"[red]helm list -n {namespace} -o json printed output that is not JSON (or not a "
+            "list), so the AKO release could not be found. Run it by hand to see what it "
+            "printed. Output:[/red]",
+            result.stdout,
+        )
+        raise SystemExit(1)
 
     for rel in releases:
         if str(rel.get("chart", "")).startswith("ako"):

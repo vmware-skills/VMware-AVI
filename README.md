@@ -308,7 +308,7 @@ vmware-avi ako sync force
 ### Multi-cluster AKO
 
 ```bash
-# List clusters with AKO deployed
+# List every kube-context and whether AKO runs there
 vmware-avi ako clusters
 
 # Cross-cluster AKO status overview

@@ -138,7 +138,7 @@ Each operation is classified by autonomy level per the Enterprise Harness Engine
 
 | Tool | Description | Parameters | Risk | Confirm |
 |------|-------------|------------|:----:|:-------:|
-| `list_ako_clusters` | List all K8s clusters with AKO deployed | *(none)* | Low | No |
+| `list_ako_clusters` | List every K8s context and whether AKO runs there (unreadable ones say so) | *(none)* | Low | No |
 | `get_ako_amko_status` | Show AMKO (Avi Multi-cluster Kubernetes Operator) GSLB status | *(none)* | Low | No |
 
 ## Risk Level Definitions

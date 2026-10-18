@@ -5,11 +5,21 @@ from __future__ import annotations
 import subprocess
 
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 from vmware_avi._safety import print_command_failure, print_external, redact_text
 
 console = Console()
+
+#: One line per AKO pod: ``phase:image``. A range, not ``{.items[0]...}``: that
+#: errors on an empty list, which made "no AKO pods" and "kubectl failed" look the
+#: same. Raw string on purpose: kubectl wants the two characters backslash-n
+#: inside the quotes; a real newline there is "unterminated quoted string"
+#: (review 2026-10-18 — every context read as unreadable).
+_AKO_POD_JSONPATH = (
+    r'jsonpath={range .items[*]}{.status.phase}:{.spec.containers[0].image}{"\n"}{end}'
+)
 
 
 def list_clusters() -> None:
@@ -56,23 +66,22 @@ def list_clusters() -> None:
                     "-l",
                     "app.kubernetes.io/name=ako",
                     "-o",
-                    # range, not {.items[0]...}: that errors on an empty list, which
-                    # made "no AKO pods" and "kubectl failed" look the same.
-                    'jsonpath={range .items[*]}{.status.phase}:{.spec.containers[0].image}'
-                    '{"\n"}{end}',
+                    _AKO_POD_JSONPATH,
                 ],
                 capture_output=True,
                 text=True, encoding="utf-8",
                 timeout=15,
             )
-        except (subprocess.TimeoutExpired, OSError):
-            table.add_row(ctx, "[red]Unreachable[/red]", "-")
-            unread.append(ctx)
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            table.add_row(escape(ctx), "[red]Unreachable[/red]", "-")
+            unread.append((ctx, type(exc).__name__))
             continue
         if pod_check.returncode != 0:
             # kubectl could not read this context: unknown, not "not deployed".
-            table.add_row(ctx, f"[red]Unreadable (kubectl exit {pod_check.returncode})[/red]", "-")
-            unread.append(ctx)
+            table.add_row(
+                escape(ctx), f"[red]Unreadable (kubectl exit {pod_check.returncode})[/red]", "-"
+            )
+            unread.append((ctx, pod_check.stderr))
             continue
         first = next((ln for ln in pod_check.stdout.splitlines() if ln.strip()), "")
         if first:
@@ -81,18 +90,26 @@ def list_clusters() -> None:
             image = parts[1] if len(parts) > 1 else "N/A"
             version = image.split(":")[-1] if ":" in image else "latest"
             status_color = "green" if phase == "Running" else "red"
-            table.add_row(ctx, f"[{status_color}]{phase}[/{status_color}]", version)
+            table.add_row(escape(ctx), f"[{status_color}]{escape(phase)}[/{status_color}]",
+                          escape(version))
         else:
-            table.add_row(ctx, "[dim]Not deployed[/dim]", "-")
+            table.add_row(escape(ctx), "[dim]Not deployed[/dim]", "-")
 
     console.print(table)
+    for ctx, cause in unread:
+        # kubectl's own words, so RBAC, a dead API server and a bad kubeconfig differ.
+        print_command_failure(
+            console, f"[yellow]Context '{escape(ctx)}' could not be read. Cause:[/yellow]", cause
+        )
     if unread:
         console.print(
-            f"[yellow]{len(unread)} context(s) could not be read ({', '.join(unread)}); "
-            "whether AKO runs there is unknown. Check each with: kubectl --context <ctx> "
-            "get pods -n avi-system[/yellow]",
-            markup=True,
+            f"[yellow]{len(unread)} of {len(contexts)} context(s) could not be read; whether "
+            "AKO runs there is unknown. Check each with: kubectl --context <ctx> get pods "
+            "-n avi-system[/yellow]"
         )
+    if contexts and len(unread) == len(contexts):
+        # Nothing was readable: this overview has no answer to give.
+        raise SystemExit(1)
 
 
 def show_amko_status() -> None:
@@ -150,8 +167,9 @@ def show_amko_status() -> None:
     if gslb_check.returncode != 0:
         print_command_failure(
             console,
-            "[yellow]Could not read GSLBConfig (kubectl get gslbconfig -n avi-system); the "
-            "AMKO CRDs may be missing or access denied. Cause:[/yellow]",
+            "[yellow]Could not read GSLBConfig (kubectl get gslbconfig -n avi-system): the "
+            "AMKO CRDs may be missing, access denied, or the cluster unreachable. "
+            "Cause:[/yellow]",
             gslb_check.stderr,
         )
     elif gslb_check.stdout.strip():

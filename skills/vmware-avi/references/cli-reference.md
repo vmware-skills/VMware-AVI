@@ -85,7 +85,7 @@ Complete command reference for the `vmware-avi` CLI (v1.4.0).
 
 | Command | Description | Arguments / Flags |
 |---------|-------------|-------------------|
-| `vmware-avi ako clusters` | List all clusters with AKO deployed | -- |
+| `vmware-avi ako clusters` | List every kube-context and whether AKO runs there | -- |
 | `vmware-avi ako amko-status` | Show AMKO (multi-cluster GSLB) status | -- |
 
 ## Destructive Operations Summary

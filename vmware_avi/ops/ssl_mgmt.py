@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from rich.console import Console
+from rich.markup import escape
 from rich.table import Table
 
 from vmware_avi._safety import sanitize
@@ -53,17 +54,22 @@ def check_expiry(days: int = 30) -> None:
 
     now = datetime.now(timezone.utc)
     expiring: list[dict] = []
+    # A certificate whose expiry cannot be read is not "not expiring": counted
+    # and named below, never silently dropped from the tally.
+    unread: list[str] = []
 
     for cert in certs:
-        cert_info = cert.get("certificate", {})
+        cert_info = cert.get("certificate", {}) or {}
         not_after_str = cert_info.get("not_after", "")
         if not not_after_str:
+            unread.append(sanitize(cert.get("name", "")))
             continue
 
         try:
             not_after = datetime.strptime(not_after_str, "%Y-%m-%d %H:%M:%S")
             not_after = not_after.replace(tzinfo=timezone.utc)
         except ValueError:
+            unread.append(sanitize(cert.get("name", "")))
             continue
 
         days_left = (not_after - now).days
@@ -87,3 +93,9 @@ def check_expiry(days: int = 30) -> None:
 
     console.print(table)
     console.print(f"  {len(expiring)} certificate(s) expiring within {days} days.")
+    if unread:
+        console.print(
+            f"  [yellow]{len(unread)} certificate(s) whose expiry could not be read (missing or "
+            f"unrecognised not_after), so they are not in the count above: "
+            f"{escape(', '.join(unread[:20]))}[/yellow]"
+        )

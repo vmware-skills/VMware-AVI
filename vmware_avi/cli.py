@@ -567,7 +567,7 @@ def ako_sync_force_cmd() -> None:
 @ako_app.command("clusters")
 @audited("list_ako_clusters")
 def ako_clusters_cmd() -> None:
-    """List all clusters with AKO deployed."""
+    """List every kube-context and whether AKO runs there (unreadable ones say so)."""
     from vmware_avi.ops.ako_multi_cluster import list_clusters
 
     list_clusters()

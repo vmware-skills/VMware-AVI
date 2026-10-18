@@ -174,15 +174,14 @@ def diagnose_ingress(name: str, namespace: str = "default", context: str | None 
                 try:
                     k8s.core_v1(context).read_namespaced_secret(tls.secret_name, namespace)
                 except Exception as exc:
-                    err_msg = str(exc)
-                    if "404" in err_msg or "Not Found" in err_msg:
+                    if _status(exc) == 404:
                         issues.append(f"TLS secret '{tls.secret_name}' missing")
                         suggestions.append(
                             f"Create secret: kubectl create secret tls {tls.secret_name} ..."
                         )
                     else:
                         issues.append(
-                            f"TLS secret '{tls.secret_name}' check failed: {err_msg[:100]}"
+                            f"TLS secret '{tls.secret_name}' could not be read ({_describe(exc)})"
                         )
 
     # Check backend services exist

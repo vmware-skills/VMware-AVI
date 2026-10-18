@@ -305,7 +305,7 @@ vmware-avi ako sync force
 ### 多集群 AKO
 
 ```bash
-# 列出部署了 AKO 的集群
+# 列出所有 kube-context 及其上是否运行 AKO
 vmware-avi ako clusters
 
 # 跨集群 AKO 状态概览
