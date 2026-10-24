@@ -203,7 +203,7 @@ def test_a_gated_write_request_error_gets_no_doctor_hint() -> None:
     def run():
         raise AviApiError("HTTP 404", status_code=404, path="pool")
 
-    out = srv._gated("set_lb_pool_member_state", None, run)
+    out = srv._gated("set_lb_pool_member_state", run)
     assert out["error"]
     assert "doctor" not in out.get("hint", "")
 
@@ -213,7 +213,7 @@ def test_a_gated_write_connectivity_error_keeps_the_doctor_hint() -> None:
     def run():
         raise ConnectionError("dropped")
 
-    out = srv._gated("set_lb_pool_member_state", None, run)
+    out = srv._gated("set_lb_pool_member_state", run)
     assert out["hint"] == srv._DOCTOR_HINT
 
 

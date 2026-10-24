@@ -163,19 +163,17 @@ def test_no_ako_pod_teaches(cluster, tool):
     v1.delete_namespaced_pod.assert_not_called()
 
 
-@pytest.mark.parametrize("tool", POD_TOOLS)
-def test_legacy_confirmed_true_acts_and_is_flagged(cluster, tool):
-    v1 = cluster()
-    out = getattr(server, tool)(confirmed=True)
-    v1.delete_namespaced_pod.assert_called_once()
-    assert "confirmed is deprecated" in out["deprecated"]
+def _protocol_call(tool: str, args: dict):
+    """Call through the MCP layer, where the argument model refuses unknown names."""
+    return asyncio.run(server.mcp.call_tool(tool, args))
 
 
+# The deprecated aliases were removed (2.5.0): passing one is an unknown argument.
 @pytest.mark.parametrize("tool", POD_TOOLS)
-def test_legacy_confirmed_false_holds_against_confirm(cluster, tool):
+def test_the_removed_confirmed_alias_is_refused_and_deletes_nothing(cluster, tool):
     v1 = cluster()
-    out = getattr(server, tool)(confirm=True, confirmed=False)
-    assert out["action"] == "preview"
+    with pytest.raises(Exception, match="confirmed"):
+        _protocol_call(tool, {"confirmed": True})
     v1.delete_namespaced_pod.assert_not_called()
 
 
@@ -277,46 +275,26 @@ def test_upgrade_a_release_without_status_is_refused(helm):
     assert "could not read status" in out["error"]
 
 
-# The old contract acted only on dry_run=False AND confirmed=True.
-@pytest.mark.parametrize(
-    ("kwargs", "acts"),
-    [
-        ({"dry_run": False, "confirmed": True}, True),
-        ({"confirmed": True}, False),
-        ({"dry_run": False}, False),
-        ({"dry_run": True, "confirmed": True}, False),
-        ({"confirm": True, "dry_run": True}, False),
-        ({"confirm": True, "confirmed": False}, False),
-        ({"confirm": True, "dry_run": False}, True),
-        ({"dry_run": True}, False),
-    ],
-    ids=[
-        "old-act",
-        "confirmed-alone",
-        "dry-run-false-alone",
-        "old-hold",
-        "new-act-alias-holds",
-        "disagree-confirmed",
-        "new-act-alias-agrees",
-        "old-default",
-    ],
-)
-def test_upgrade_legacy_aliases_are_read_conservatively(helm, kwargs, acts):
+@pytest.mark.parametrize("alias", [{"confirmed": True}, {"dry_run": False, "confirmed": True},
+                                   {"dry_run": False}])
+def test_upgrade_the_removed_aliases_are_refused_and_upgrade_nothing(helm, alias):
     state = helm()
-    out = server.upgrade_ako_config(**kwargs)
-    assert bool(state.applied) is acts
-    assert out["action"] == ("upgraded" if acts else "preview")
-    legacy = [k for k in ("confirmed", "dry_run") if k in kwargs]
-    for name in legacy:
-        assert f"{name} is deprecated" in out["deprecated"]
+    with pytest.raises(Exception, match="confirmed|dry_run"):
+        _protocol_call("upgrade_ako_config", alias)
+    assert state.applied == []
+
+
+def test_upgrade_no_deprecation_note_any_more(helm):
+    helm()
+    assert "deprecated" not in server.upgrade_ako_config()
+    assert "deprecated" not in server.upgrade_ako_config(confirm=True)
 
 
 def test_upgrade_schema():
     tool = next(t for t in asyncio.run(server.mcp.list_tools()) if t.name == "upgrade_ako_config")
     props = tool.inputSchema["properties"]
     assert props["confirm"]["default"] is False
-    assert props["confirmed"]["default"] is None
-    assert props["dry_run"]["default"] is None
+    assert "confirmed" not in props and "dry_run" not in props
 
 
 @pytest.mark.parametrize("tool_name", POD_TOOLS)
@@ -324,7 +302,7 @@ def test_pod_tool_schema(tool_name):
     tool = next(t for t in asyncio.run(server.mcp.list_tools()) if t.name == tool_name)
     props = tool.inputSchema["properties"]
     assert props["confirm"]["default"] is False
-    assert props["confirmed"]["default"] is None
+    assert "confirmed" not in props
 
 
 def test_upgrade_a_failed_helm_upgrade_is_an_error_not_a_success(helm, monkeypatch):

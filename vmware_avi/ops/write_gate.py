@@ -8,9 +8,8 @@ Every in-scope MCP write tool in this skill takes ``confirm: bool = False``:
 * L3 — ``confirm=True`` is refused, with a teaching error, when a blocker is
   present or a field the blast radius depends on could not be read.
 
-The legacy spellings ``confirmed`` and ``dry_run`` stay for one minor cycle as
-deprecated aliases. When both old and new are passed, the conservative reading
-wins: the call acts only if something said "act" and nothing said "hold".
+The legacy spellings ``confirmed`` and ``dry_run`` were removed in 2.5.0; a call
+that still passes one is refused by the tool's argument model as an unknown name.
 """
 
 from __future__ import annotations
@@ -19,9 +18,6 @@ from typing import Any, NamedTuple
 
 #: Identifiers listed individually in a blast radius; counts cover the rest.
 MAX_LISTED = 16
-
-_DEPRECATED = "{name} is deprecated; use confirm. Removed in the next minor release."
-
 
 class GateRefusedError(ValueError):
     """A confirmed write refused before anything was sent (blocker or unmeasured).
@@ -37,41 +33,14 @@ class GateRefusedError(ValueError):
 
 
 class Decision(NamedTuple):
-    """Whether this call acts, and the deprecation note for any alias used."""
+    """Whether this call acts."""
 
     act: bool
-    deprecated: str | None
 
 
-def resolve_confirm(
-    confirm: Any,
-    *,
-    confirmed: bool | None = None,
-    dry_run: bool | None = None,
-    legacy_needs_dry_run_false: bool = False,
-) -> Decision:
-    """Read ``confirm`` and the deprecated aliases conservatively.
-
-    Args:
-        confirm: The new parameter; only ``True`` acts.
-        confirmed: Legacy alias; ``None`` means it was not passed.
-        dry_run: Legacy alias (upgrade_ako_config only); ``None`` = not passed.
-        legacy_needs_dry_run_false: The tool's old contract acted only on
-            ``confirmed=True`` *and* ``dry_run=False`` (its dry_run defaulted
-            to True), so ``confirmed=True`` alone is not an old-style "act".
-
-    Returns:
-        ``Decision(act, deprecated)``. ``act`` is True iff ``confirm is True``
-        or the legacy arguments actually passed satisfy the old contract, and
-        no explicitly passed argument says hold (``confirmed=False`` or
-        ``dry_run=True``).
-    """
-    used = [n for n, v in (("confirmed", confirmed), ("dry_run", dry_run)) if v is not None]
-    legacy_act = confirmed is True and (not legacy_needs_dry_run_false or dry_run is False)
-    hold = confirmed is False or dry_run is True
-    act = (confirm is True or legacy_act) and not hold
-    deprecated = " ".join(_DEPRECATED.format(name=n) for n in used) or None
-    return Decision(act=act, deprecated=deprecated)
+def resolve_confirm(confirm: Any) -> Decision:
+    """Read ``confirm`` conservatively: only ``True`` itself acts."""
+    return Decision(act=confirm is True)
 
 
 def refusal(tool: str, subject: str, radius: dict, next_step: str) -> str | None:

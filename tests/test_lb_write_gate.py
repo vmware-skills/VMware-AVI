@@ -7,8 +7,8 @@
 * L3 — ``confirm=True`` is refused when a blocker is present (the pool's last
   enabled member, an ambiguous member IP) or a field could not be read.
 
-The legacy ``confirmed`` parameter is a deprecated alias; the conservative
-reading wins when both are passed.
+The deprecated ``confirmed`` alias was removed (2.5.0): a call that still
+passes it is refused as an unknown argument and writes nothing.
 """
 
 from __future__ import annotations
@@ -262,28 +262,26 @@ def test_vs_toggle_failed_put_is_an_error_not_a_success(controller, monkeypatch)
     assert "was not changed" in out["error"]
 
 
-# ─── set_virtual_service_enabled: legacy alias ──────────────────────────────────────────────────
+# ─── set_virtual_service_enabled: the removed alias ─────────────────────────────
 
 
-def test_vs_toggle_confirmed_true_still_acts_and_says_it_is_deprecated(controller):
+def _protocol_call(tool: str, args: dict):
+    """Call through the MCP layer, where the argument model refuses unknown names."""
+    return asyncio.run(server.mcp.call_tool(tool, args))
+
+
+def test_vs_toggle_the_removed_confirmed_alias_is_refused_and_writes_nothing(controller):
     ctrl = controller()
-    out = server.set_virtual_service_enabled("web-vs", False, confirmed=True)
-    assert out["action"] == "disabled"
-    assert len(ctrl.puts) == 1
-    assert "confirmed is deprecated; use confirm" in out["deprecated"]
-
-
-def test_vs_toggle_explicit_confirmed_false_holds_even_with_confirm(controller):
-    ctrl = controller()
-    out = server.set_virtual_service_enabled("web-vs", False, confirm=True, confirmed=False)
-    assert out["action"] == "preview"
+    with pytest.raises(Exception, match="confirmed"):
+        _protocol_call("set_virtual_service_enabled",
+                       {"name": "web-vs", "enable": False, "confirmed": True})
     assert ctrl.puts == []
-    assert "deprecated" in out
 
 
-def test_vs_toggle_no_alias_means_no_deprecation_note(controller):
+def test_vs_toggle_no_deprecation_note_any_more(controller):
     controller()
     assert "deprecated" not in server.set_virtual_service_enabled("web-vs", False)
+    assert "deprecated" not in server.set_virtual_service_enabled("web-vs", False, confirm=True)
 
 
 def test_vs_toggle_undo_is_recorded_only_for_a_change(controller, monkeypatch):
@@ -385,27 +383,21 @@ def test_pool_member_disable_unknown_member_teaches(controller):
     assert ctrl.puts == []
 
 
-def test_pool_member_disable_legacy_confirmed_acts(controller):
+def test_pool_member_disable_the_removed_confirmed_alias_is_refused(controller):
     ctrl = controller()
-    out = server.disable_lb_pool_member("web-pool", "10.1.0.1", confirmed=True)
-    assert out["action"] == "drained" and len(ctrl.puts) == 1
-    assert "confirmed is deprecated" in out["deprecated"]
-
-
-def test_pool_member_disable_legacy_confirmed_false_holds(controller):
-    ctrl = controller()
-    out = server.disable_lb_pool_member("web-pool", "10.1.0.1", confirm=True, confirmed=False)
-    assert out["action"] == "preview" and ctrl.puts == []
+    with pytest.raises(Exception, match="confirmed"):
+        _protocol_call("disable_lb_pool_member",
+                       {"pool": "web-pool", "server": "10.1.0.1", "confirmed": True})
+    assert ctrl.puts == []
 
 
 # ─── schema ───────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.parametrize("tool_name", ["set_virtual_service_enabled", "disable_lb_pool_member"])
-def test_schema_defaults_confirm_to_false_and_alias_to_null(tool_name):
+def test_schema_defaults_confirm_to_false_and_has_no_alias(tool_name):
     tool = next(t for t in asyncio.run(server.mcp.list_tools()) if t.name == tool_name)
     props = tool.inputSchema["properties"]
     assert props["confirm"]["default"] is False
-    assert props["confirmed"]["default"] is None
-    assert "Deprecated alias for confirm" in props["confirmed"]["description"]
+    assert "confirmed" not in props
     assert "confirm" not in tool.inputSchema.get("required", [])

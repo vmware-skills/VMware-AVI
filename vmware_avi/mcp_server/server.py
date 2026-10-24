@@ -353,13 +353,13 @@ def _capture_output(func, *args, **kwargs) -> str:
     return buf.getvalue()
 
 
-def _gated(tool: str, deprecated: Optional[str], run) -> dict:
+def _gated(tool: str, run) -> dict:
     """Run one gated write (HLD §7) and shape every outcome as a dict.
 
     A refusal (``GateRefusedError``) keeps its teaching text and the blast
     radius it measured; any other failure goes through ``_safe_error``. Both
     come back as ``{"error": ...}``, which ``@vmware_tool`` audits as a
-    failure. ``deprecated`` is attached whenever a legacy alias was passed.
+    failure.
     """
     from vmware_avi.ops.write_gate import GateRefusedError
 
@@ -370,7 +370,7 @@ def _gated(tool: str, deprecated: Optional[str], run) -> dict:
         out = {"error": sanitize(str(exc), 1000), "blast_radius": exc.blast_radius}
     except Exception as exc:  # noqa: BLE001 — reduced to a safe string by _safe_error
         out = {"error": _safe_error(exc, tool), "hint": _hint_for(exc)}
-    return {**out, "deprecated": deprecated} if deprecated else out
+    return out
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -460,7 +460,6 @@ def set_virtual_service_enabled(
     name: str,
     enable: bool,
     confirm: bool = False,
-    confirmed: Optional[bool] = None,
 ) -> dict:
     """[WRITE] Enable or disable a Virtual Service. Disabling stops all traffic to it.
 
@@ -479,15 +478,13 @@ def set_virtual_service_enabled(
         enable: true to enable, false to disable.
         confirm: False (default) returns the blast radius and changes nothing.
             True applies it.
-        confirmed: Deprecated alias for confirm; removed in the next minor
-            release. confirmed=False holds even when confirm=True.
     """
     from vmware_avi.ops import lb_gate
     from vmware_avi.ops.vs_mgmt import toggle_vs
     from vmware_avi.ops.write_gate import resolve_confirm
 
-    decision = resolve_confirm(confirm, confirmed=confirmed)
-    return _gated("set_virtual_service_enabled", decision.deprecated, lambda: lb_gate.vs_toggle(
+    decision = resolve_confirm(confirm)
+    return _gated("set_virtual_service_enabled", lambda: lb_gate.vs_toggle(
         name, enable, act=decision.act,
         apply=lambda: _capture_output(toggle_vs, name, enable=enable, skip_prompt=True),
     ))
@@ -584,7 +581,6 @@ def disable_lb_pool_member(
     pool: str,
     server: str,
     confirm: bool = False,
-    confirmed: Optional[bool] = None,
 ) -> dict:
     """[WRITE] Disable a pool member with graceful drain — existing connections
     complete, no new traffic.
@@ -610,15 +606,13 @@ def disable_lb_pool_member(
         server: Server IP address.
         confirm: False (default) returns the blast radius and changes nothing.
             True applies it.
-        confirmed: Deprecated alias for confirm; removed in the next minor
-            release. confirmed=False holds even when confirm=True.
     """
     from vmware_avi.ops import lb_gate
     from vmware_avi.ops.pool_mgmt import toggle_pool_member
     from vmware_avi.ops.write_gate import resolve_confirm
 
-    decision = resolve_confirm(confirm, confirmed=confirmed)
-    return _gated("disable_lb_pool_member", decision.deprecated, lambda: (
+    decision = resolve_confirm(confirm)
+    return _gated("disable_lb_pool_member", lambda: (
         lb_gate.pool_member_disable(
             pool, server, act=decision.act,
             apply=lambda: _capture_output(
@@ -840,7 +834,6 @@ def get_ako_logs(
 def restart_ako(
     context: Optional[str] = None,
     confirm: bool = False,
-    confirmed: Optional[bool] = None,
 ) -> dict:
     """[WRITE] Restart the AKO pod by deleting it — its StatefulSet recreates it.
 
@@ -860,17 +853,15 @@ def restart_ako(
         context: K8s context name (optional).
         confirm: False (default) returns the blast radius and changes nothing.
             True applies it.
-        confirmed: Deprecated alias for confirm; removed in the next minor
-            release. confirmed=False holds even when confirm=True.
     """
     from vmware_avi.ops import ako_gate
     from vmware_avi.ops.ako_pod import restart_ako as _ops_restart_ako
     from vmware_avi.ops.write_gate import resolve_confirm
 
-    decision = resolve_confirm(confirm, confirmed=confirmed)
+    decision = resolve_confirm(confirm)
     effect = ("Deletes the AKO pod; its StatefulSet recreates it. Ingress programming pauses "
               "until the new pod is Running; brief traffic disruption is possible.")
-    return _gated("restart_ako", decision.deprecated, lambda: ako_gate.delete_ako_pod(
+    return _gated("restart_ako", lambda: ako_gate.delete_ako_pod(
         "restart_ako", context, effect, act=decision.act,
         apply=lambda uid: _capture_output(_ops_restart_ako, context, skip_prompt=True, uid=uid),
     ))
@@ -968,8 +959,6 @@ def diff_ako_config(chart_version: str = "") -> str:
 def upgrade_ako_config(
     confirm: bool = False,
     chart_version: str = "",
-    dry_run: Optional[bool] = None,
-    confirmed: Optional[bool] = None,
 ) -> dict:
     """[WRITE] Apply an AKO Helm upgrade to the avi-system release.
 
@@ -991,24 +980,18 @@ def upgrade_ako_config(
             True applies it.
         chart_version: Pin the chart, e.g. "1.11.1". Empty = registry latest,
             resolved at apply time, so it can differ from the preview.
-        dry_run: Deprecated alias; removed in the next minor release. The old
-            contract applied only with dry_run=false and confirmed=true;
-            dry_run=true holds even when confirm=True.
-        confirmed: Deprecated alias for confirm; removed in the next minor
-            release. confirmed=False holds even when confirm=True.
     """
     from vmware_avi.ops import ako_config, ako_gate
     from vmware_avi.ops.write_gate import resolve_confirm
 
-    decision = resolve_confirm(confirm, confirmed=confirmed, dry_run=dry_run,
-                               legacy_needs_dry_run_false=True)
+    decision = resolve_confirm(confirm)
 
     def apply() -> str:
         return _capture_output(
             ako_config.upgrade_ako, False, chart_version=chart_version, skip_prompt=True
         )
 
-    return _gated("upgrade_ako_config", decision.deprecated,
+    return _gated("upgrade_ako_config",
                   lambda: ako_gate.upgrade(chart_version, act=decision.act, apply=apply))
 
 
@@ -1159,7 +1142,6 @@ def diff_ako_sync(context: Optional[str] = None) -> str:
 def force_ako_sync(
     context: Optional[str] = None,
     confirm: bool = False,
-    confirmed: Optional[bool] = None,
 ) -> dict:
     """[WRITE] Force AKO to resync all K8s resources with the AVI Controller.
 
@@ -1180,17 +1162,15 @@ def force_ako_sync(
         context: K8s context name (optional).
         confirm: False (default) returns the blast radius and changes nothing.
             True applies it.
-        confirmed: Deprecated alias for confirm; removed in the next minor
-            release. confirmed=False holds even when confirm=True.
     """
     from vmware_avi.ops import ako_gate
     from vmware_avi.ops.ako_sync import force_resync
     from vmware_avi.ops.write_gate import resolve_confirm
 
-    decision = resolve_confirm(confirm, confirmed=confirmed)
+    decision = resolve_confirm(confirm)
     effect = ("Deletes the AKO pod to force a full resync: every Virtual Service, pool and VS-VIP "
               "is rebuilt from the cluster's resources; brief traffic disruption is possible.")
-    return _gated("force_ako_sync", decision.deprecated, lambda: ako_gate.delete_ako_pod(
+    return _gated("force_ako_sync", lambda: ako_gate.delete_ako_pod(
         "force_ako_sync", context, effect, act=decision.act,
         apply=lambda uid: _capture_output(force_resync, context, skip_prompt=True, uid=uid),
     ))

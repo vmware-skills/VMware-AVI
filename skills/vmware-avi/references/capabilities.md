@@ -67,7 +67,7 @@ Each operation is classified by autonomy level per the Enterprise Harness Engine
 |------|-------------|------------|:----:|:-------:|
 | `list_virtual_services` | List all Virtual Services on the active controller | `controller` (string, optional) | Low | No |
 | `get_virtual_service_status` | Show detailed status of a single VS (VIP, health score, pool binding, enabled state) | `name` (string, **required**) | Low | No |
-| `set_virtual_service_enabled` | Enable or disable a Virtual Service. Returns `blast_radius` (VS, uuid, current state, VIPs, pools and member counts); previews unless `confirm=true` | `name` (string, **required**), `enable` (boolean, **required**), `confirm` (boolean, default `false`), `confirmed` (deprecated alias) | Medium | Yes (both directions) |
+| `set_virtual_service_enabled` | Enable or disable a Virtual Service. Returns `blast_radius` (VS, uuid, current state, VIPs, pools and member counts); previews unless `confirm=true` | `name` (string, **required**), `enable` (boolean, **required**), `confirm` (boolean, default `false`) | Medium | Yes (both directions) |
 
 ### Pool Member (4)
 
@@ -76,7 +76,7 @@ Each operation is classified by autonomy level per the Enterprise Harness Engine
 | `list_lb_pools` | Discover pools on the Controller, with VS bindings (uses `/virtualservice-inventory` to include K8S-managed pool groups) | `vs_filter` (string, optional) | Low | No |
 | `list_lb_pool_members` | List all members of a pool with health status and ratio | `pool` (string, **required**) | Low | No |
 | `enable_lb_pool_member` | Enable a pool member (restore traffic after maintenance) | `pool` (string, **required**), `server` (string, **required**) | Low | No |
-| `disable_lb_pool_member` | Disable a pool member with graceful connection drain. Returns `blast_radius` (pool, member, enabled members before/after); refuses the pool's only enabled member | `pool` (string, **required**), `server` (string, **required**), `confirm` (boolean, default `false`), `confirmed` (deprecated alias) | Medium | Yes |
+| `disable_lb_pool_member` | Disable a pool member with graceful connection drain. Returns `blast_radius` (pool, member, enabled members before/after); refuses the pool's only enabled member | `pool` (string, **required**), `server` (string, **required**), `confirm` (boolean, default `false`) | Medium | Yes |
 
 ### SSL Certificate (2)
 
@@ -107,7 +107,7 @@ Each operation is classified by autonomy level per the Enterprise Harness Engine
 |------|-------------|------------|:----:|:-------:|
 | `get_ako_status` | Check AKO pod status (phase, restart count, readiness) | `context` (string, optional) | Low | No |
 | `get_ako_logs` | View AKO pod logs (tail mode) | `tail` (integer, default: 100), `since` (string, optional) | Low | No |
-| `restart_ako` | Restart AKO pod by deleting it (its StatefulSet recreates it). Returns `blast_radius` (pod, uid, phase, Ingresses); the delete is pinned to the measured uid | `context` (string, optional), `confirm` (boolean, default `false`), `confirmed` (deprecated alias) | High | Yes |
+| `restart_ako` | Restart AKO pod by deleting it (its StatefulSet recreates it). Returns `blast_radius` (pod, uid, phase, Ingresses); the delete is pinned to the measured uid | `context` (string, optional), `confirm` (boolean, default `false`) | High | Yes |
 | `get_ako_version` | Show AKO container image tag and Helm chart version | `context` (string, optional) | Low | No |
 
 ### AKO Config (3)
@@ -116,7 +116,7 @@ Each operation is classified by autonomy level per the Enterprise Harness Engine
 |------|-------------|------------|:----:|:-------:|
 | `get_ako_config` | Show current AKO Helm values (values.yaml snapshot; release auto-discovered via `helm list` — official installs use `--generate-name`) | *(none)* | Low | No |
 | `diff_ako_config` | Preview the pending Helm change, running the same command `upgrade_ako_config` does (`--reuse-values` included) so the diff describes the actual upgrade rather than the chart's defaults. Chart: `oci://projects.packages.broadcom.com/ako/helm-charts/ako` | `chart_version` (optional — empty resolves to registry latest, which can move between calls) | Low | No |
-| `upgrade_ako_config` | Helm upgrade the discovered AKO release from the official Broadcom OCI chart with `--reuse-values`. Without `confirm=true` returns `blast_radius` (release, chart now → chart to, status) plus the `helm upgrade --dry-run` output | `confirm` (boolean, default `false`), `chart_version` (optional), `dry_run` / `confirmed` (deprecated aliases) | High | Yes |
+| `upgrade_ako_config` | Helm upgrade the discovered AKO release from the official Broadcom OCI chart with `--reuse-values`. Without `confirm=true` returns `blast_radius` (release, chart now → chart to, status) plus the `helm upgrade --dry-run` output | `confirm` (boolean, default `false`), `chart_version` (optional) | High | Yes |
 
 ### Ingress Diagnostics (3)
 
@@ -132,7 +132,7 @@ Each operation is classified by autonomy level per the Enterprise Harness Engine
 |------|-------------|------------|:----:|:-------:|
 | `get_ako_sync_status` | Check overall K8s-to-Controller sync health | *(none)* | Low | No |
 | `diff_ako_sync` | Show objects present in K8s but missing on Controller, and vice versa | *(none)* | Low | No |
-| `force_ako_sync` | Force AKO to re-reconcile all K8s objects against the Controller (deletes the AKO pod). Returns `blast_radius` like `restart_ako` | `context` (string, optional), `confirm` (boolean, default `false`), `confirmed` (deprecated alias) | Medium | Yes |
+| `force_ako_sync` | Force AKO to re-reconcile all K8s objects against the Controller (deletes the AKO pod). Returns `blast_radius` like `restart_ako` | `context` (string, optional), `confirm` (boolean, default `false`) | Medium | Yes |
 
 ### Multi-cluster (2)
 
