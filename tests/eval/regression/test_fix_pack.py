@@ -316,7 +316,7 @@ class TestMcpUpgradeGate:
     """The MCP upgrade never prompts on stdio, and never upgrades on a bare call.
 
     Updated 2026-09-19 for HLD §7: ``confirm`` replaced ``confirmed``/``dry_run``
-    (kept as deprecated aliases), and the preview is measured — it runs
+    (the aliases were removed in 2.4.1), and the preview is measured — it runs
     ``helm list`` and ``helm upgrade --dry-run`` — so the measurement is stubbed
     here. The full contract is in tests/test_ako_write_gate.py.
     """
@@ -333,7 +333,7 @@ class TestMcpUpgradeGate:
 
         self._measured(monkeypatch)
         with patch("vmware_avi.ops.ako_config.upgrade_ako") as mock_upgrade:
-            out = server.upgrade_ako_config(dry_run=False, confirmed=False)
+            out = server.upgrade_ako_config()
 
         mock_upgrade.assert_not_called()
         assert out["action"] == "preview"
@@ -349,12 +349,12 @@ class TestMcpUpgradeGate:
         mock_upgrade.assert_called_once()
         assert mock_upgrade.call_args.kwargs.get("skip_prompt") is True
 
-    def test_dry_run_true_never_runs_the_executor(self, monkeypatch) -> None:
+    def test_a_preview_never_runs_the_executor(self, monkeypatch) -> None:
         from vmware_avi.mcp_server import server
 
         self._measured(monkeypatch)
         with patch("vmware_avi.ops.ako_config.upgrade_ako") as mock_upgrade:
-            out = server.upgrade_ako_config(dry_run=True, confirmed=False)
+            out = server.upgrade_ako_config(confirm=False)
 
         mock_upgrade.assert_not_called()
         assert out["helm_dry_run"] == "dry-run output"
