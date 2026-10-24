@@ -8,7 +8,7 @@ Every in-scope MCP write tool in this skill takes ``confirm: bool = False``:
 * L3 — ``confirm=True`` is refused, with a teaching error, when a blocker is
   present or a field the blast radius depends on could not be read.
 
-The legacy spellings ``confirmed`` and ``dry_run`` were removed in 2.5.0; a call
+The legacy spellings ``confirmed`` and ``dry_run`` were removed in 2.4.1; a call
 that still passes one is refused by the tool's argument model as an unknown name.
 """
 

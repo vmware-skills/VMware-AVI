@@ -7,7 +7,7 @@
 * L3 — ``confirm=True`` is refused when a blocker is present (the pool's last
   enabled member, an ambiguous member IP) or a field could not be read.
 
-The deprecated ``confirmed`` alias was removed (2.5.0): a call that still
+The deprecated ``confirmed`` alias was removed (2.4.1): a call that still
 passes it is refused as an unknown argument and writes nothing.
 """
 

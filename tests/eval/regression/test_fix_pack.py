@@ -316,7 +316,7 @@ class TestMcpUpgradeGate:
     """The MCP upgrade never prompts on stdio, and never upgrades on a bare call.
 
     Updated 2026-09-19 for HLD §7: ``confirm`` replaced ``confirmed``/``dry_run``
-    (the aliases were removed in 2.5.0), and the preview is measured — it runs
+    (the aliases were removed in 2.4.1), and the preview is measured — it runs
     ``helm list`` and ``helm upgrade --dry-run`` — so the measurement is stubbed
     here. The full contract is in tests/test_ako_write_gate.py.
     """

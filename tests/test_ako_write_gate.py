@@ -168,7 +168,7 @@ def _protocol_call(tool: str, args: dict):
     return asyncio.run(server.mcp.call_tool(tool, args))
 
 
-# The deprecated aliases were removed (2.5.0): passing one is an unknown argument.
+# The deprecated aliases were removed (2.4.1): passing one is an unknown argument.
 @pytest.mark.parametrize("tool", POD_TOOLS)
 def test_the_removed_confirmed_alias_is_refused_and_deletes_nothing(cluster, tool):
     v1 = cluster()
