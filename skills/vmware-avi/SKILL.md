@@ -25,6 +25,8 @@ compatibility: >
 
 # VMware AVI
 
+> Self-test: [guide](https://github.com/vmware-skills/marketplace/blob/main/MODEL_FIT_SELF_TEST.md).
+
 > **Disclaimer**: This is a community-maintained open-source project and is **not affiliated with, endorsed by, or sponsored by VMware, Inc. or Broadcom Inc.** "VMware", "NSX", and "AVI" are trademarks of Broadcom. Source code is publicly auditable at [github.com/vmware-skills/VMware-AVI](https://github.com/vmware-skills/VMware-AVI) under the MIT license.
 
 AVI (NSX Advanced Load Balancer) application delivery and AKO Kubernetes operations — 28 MCP tools.
