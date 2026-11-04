@@ -1,5 +1,8 @@
 ## Unreleased — error hints
 
+* Require pyasn1 0.6.5 or later to avoid quadratic CPU use when parsing crafted ASN.1 data (CVE-2026-119194 through CVE-2026-119197); the development lock resolves 0.6.5.
+* Connection-pool regression tests now gate overlapping calls before spawning, so they exercise the intended race without creating thousands of recursive threads. The avisdk idle cleanup keeps naive UTC timestamps while avoiding `datetime.utcnow()` in this package.
+
 * **Error hints fit the error.** An error about the request itself (a 4xx other than 401/403, an unknown
   controller) no longer tells the agent to run `doctor`, which would report green; an argument error that may
   name no fix offers doctor only as a fallback. Connection, credential, 5xx and unparseable-response errors keep it.
