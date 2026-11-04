@@ -465,9 +465,11 @@ def test_overlapping_config_edit_builds_each_call_from_its_own_config(
     pool = AviConnectionManager._sessions()
     original_get = pool.get
     newer: dict[str, FakeSession] = {}
+    started = threading.Event()
 
     def get(key: str) -> FakeSession:
-        if not newer:  # the edited config arrives between this call's lookup and its login
+        if not started.is_set():  # the edited config arrives between lookup and login
+            started.set()
             t = threading.Thread(
                 target=lambda: newer.setdefault(
                     "s",
@@ -478,6 +480,7 @@ def test_overlapping_config_edit_builds_each_call_from_its_own_config(
             )
             t.start()
             t.join(_WAIT)
+            assert not t.is_alive(), "the overlapping login did not finish"
         return original_get(key)
 
     monkeypatch.setattr(pool, "get", get)
@@ -495,15 +498,18 @@ def test_k8s_overlapping_kubeconfig_change_keeps_each_calls_file(
     pool = K8sConnectionManager._clients()
     original_get = pool.get
     done: list[Any] = []
+    started = threading.Event()
 
     def get(key: str) -> Any:
-        if not done:  # a call on the new kubeconfig arrives between lookup and build
+        if not started.is_set():  # the new kubeconfig arrives between lookup and build
+            started.set()
             mgr = K8sConnectionManager(AkoConfig(kubeconfig=str(other)))
             t = threading.Thread(
                 target=lambda: done.append(_run_calls(lambda: mgr.get_client("dev"))[0])
             )
             t.start()
             t.join(_WAIT)
+            assert not t.is_alive(), "the overlapping kubeconfig call did not finish"
         return original_get(key)
 
     monkeypatch.setattr(pool, "get", get)

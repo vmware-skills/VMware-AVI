@@ -15,7 +15,7 @@ import itertools
 import logging
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import lru_cache
 from typing import TYPE_CHECKING, ClassVar
 
@@ -242,7 +242,8 @@ def _clean_inactive_unpooled_sessions() -> None:
     for key, entry in list(cache.items()):
         if _POOLED_KEY_MARK in key:
             continue
-        idle = avi_api.avi_timedelta(datetime.utcnow() - entry["last_used"])  # avisdk's clock
+        now = datetime.now(timezone.utc).replace(tzinfo=None)  # avisdk stores naive UTC
+        idle = avi_api.avi_timedelta(now - entry["last_used"])
         if idle < expiry:
             continue
         try:
