@@ -1,9 +1,12 @@
 <!-- mcp-name: io.github.vmware-skills/vmware-avi -->
+
+MCP 2.5 迁移：工具参数中的旧 `confirmed` / `dry_run` 已移除；请求执行时使用 `confirm=true`，省略 `confirm` 则预览。旧参数会被拒绝且不执行写入，CLI 的 dry-run 选项不变。
+
 # VMware AVI
 
 要用自己的模型和 Agent 平台进行只读自测，请看 marketplace 根目录的[共享模型适配自测任务](https://github.com/vmware-skills/marketplace/blob/main/MODEL_FIT_SELF_TEST.md)。
 
-> **作者**: Wei Zhou, VMware by Broadcom — wei-wz.zhou@broadcom.com
+> **作者**: Wei Zhou, VMware by Broadcom — zhouwei008@gmail.com
 > 本项目由 VMware 工程师维护的社区项目，非 VMware 官方产品。
 > VMware 官方开发者工具请访问 [developer.broadcom.com](https://developer.broadcom.com)。
 

@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vmware-avi"
-version = "2.4.0"
+version = "2.5.0"
 description = "AVI (NSX Advanced Load Balancer) management and AKO Kubernetes operations tool"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
-authors = [{ name = "Wei Zhou", email = "wei-wz.zhou@broadcom.com" }]
+authors = [{ name = "Wei Zhou", email = "zhouwei008@gmail.com" }]
 dependencies = [
     "avisdk>=22.1,<31.0",
     "kubernetes>=28.0,<33.0",
