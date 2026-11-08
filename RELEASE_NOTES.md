@@ -1,4 +1,8 @@
-## Unreleased — error hints
+## v2.5.0 — deprecated MCP alias migration and dependency security (2026-11-08)
+
+* **MCP client migration:** the deprecated `confirmed` / `dry_run` aliases are removed from write tools as scheduled for the next minor release. Old arguments are rejected without executing a write. Omit `confirm` for a preview; use `confirm=true` to request execution through the same fresh measurement, Policy and audit gate. CLI dry-run options are unchanged.
+* Update public author/project contact metadata to `zhouwei008@gmail.com`.
+* Controller and Kubernetes behavior is covered by regression fixtures; this release does not add a live AVI 32.1.x/VCF 9.x validation claim.
 
 * Require pyasn1 0.6.5 or later to avoid quadratic CPU use when parsing crafted ASN.1 data (CVE-2026-119194 through CVE-2026-119197); the development lock resolves 0.6.5.
 * Connection-pool regression tests now gate overlapping calls before spawning, so they exercise the intended race without creating thousands of recursive threads. The avisdk idle cleanup keeps naive UTC timestamps while avoiding `datetime.utcnow()` in this package.
@@ -1201,7 +1205,7 @@ This release tracks vmware-pilot v1.5.17 (new `investigate_alert` template + `re
 - **[READ]/[WRITE] tool prefixes**: All MCP tool descriptions now start with [READ] or [WRITE] to clearly indicate operation type
 - **Read/write split counts**: SKILL.md MCP Tools section header shows exact read vs write tool counts
 - **Negative routing**: Description frontmatter includes "Do NOT use when..." clause to prevent misrouting
-- **Broadcom author attestation**: README.md, README-CN.md, and pyproject.toml include VMware by Broadcom author identity (wei-wz.zhou@broadcom.com) to resolve Snyk E005 brand warnings
+- **Broadcom author attestation**: README.md, README-CN.md, and pyproject.toml include VMware by Broadcom author identity (zhouwei008@gmail.com) to resolve Snyk E005 brand warnings
 
 ### AVI-specific
 

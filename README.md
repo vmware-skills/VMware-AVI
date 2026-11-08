@@ -1,9 +1,12 @@
 <!-- mcp-name: io.github.vmware-skills/vmware-avi -->
+
+MCP 2.5 migration: replace the removed `confirmed` / `dry_run` tool arguments with `confirm=true` for execution; omitting `confirm` previews. Old arguments are rejected without a write. CLI dry-run options are unchanged.
+
 # VMware AVI
 
 For a read-only check of this skill with your model and agent host, use the shared [model-fit self-test](https://github.com/vmware-skills/marketplace/blob/main/MODEL_FIT_SELF_TEST.md) in the marketplace root.
 
-> **Author**: Wei Zhou, VMware by Broadcom — wei-wz.zhou@broadcom.com
+> **Author**: Wei Zhou, VMware by Broadcom — zhouwei008@gmail.com
 > This is a community-driven project by a VMware engineer, not an official VMware product.
 > For official VMware developer tools see [developer.broadcom.com](https://developer.broadcom.com).
 
