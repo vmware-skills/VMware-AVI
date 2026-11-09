@@ -179,11 +179,7 @@ Copy this configuration into your MCP client's local stdio settings. The client 
   "mcpServers": {
     "vmware-avi": {
       "command": "uvx",
-      "args": [
-        "--from",
-        "vmware-avi==2.5.0",
-        "vmware-avi-mcp"
-      ],
+      "args": ["--from", "vmware-avi==2.5.0", "vmware-avi-mcp"],
       "env": {
         "VMWARE_AVI_CONFIG": "~/.vmware-avi/config.yaml"
       }

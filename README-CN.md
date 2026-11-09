@@ -179,11 +179,7 @@ vmware-avi doctor    # 检查 Controller 连通性 + kubeconfig + avisdk
   "mcpServers": {
     "vmware-avi": {
       "command": "uvx",
-      "args": [
-        "--from",
-        "vmware-avi==2.5.0",
-        "vmware-avi-mcp"
-      ],
+      "args": ["--from", "vmware-avi==2.5.0", "vmware-avi-mcp"],
       "env": {
         "VMWARE_AVI_CONFIG": "~/.vmware-avi/config.yaml"
       }
