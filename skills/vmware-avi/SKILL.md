@@ -213,7 +213,7 @@ vmware-avi ako amko status
 ### "Controller unreachable" error
 1. Run `vmware-avi doctor` to verify connectivity
 2. Check if the controller address and port are correct in `~/.vmware-avi/config.yaml`
-3. For self-signed certs: set `verify_ssl: false` in config.yaml (lab environments only)
+3. Keep `verify_ssl: true`; trust a private CA via `SSL_CERT_FILE`. An isolated-lab-only `verify_ssl: false` disables certificate/hostname checks and permits endpoint impersonation and credential interception
 
 ### AKO Pod in CrashLoopBackOff
 1. Check logs → `vmware-avi ako logs --tail 50`

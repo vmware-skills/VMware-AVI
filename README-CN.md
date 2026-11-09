@@ -35,6 +35,10 @@ AVI（NSX 高级负载均衡器）管理与 AKO Kubernetes 运维工具 — 10 �
 
 ---
 
+容器示例先在本地构建带版本标签的镜像，再用 `--pull=never` 运行，避免回退到镜像仓库拉取。本地版本标签不等于不可变的镜像摘要。
+
+保持 TLS 校验开启，私有 CA 通过 `SSL_CERT_FILE` 加入信任。关闭证书/主机名校验仅限隔离实验环境，会允许端点冒充和凭据拦截。
+
 ## 升级到 2.0
 
 2.0 把全部 28 个 MCP 工具改成动词在前（例如 `ako_amko_status` → `get_ako_amko_status`, `ako_clusters` → `list_ako_clusters`, `ako_config_diff` → `diff_ako_config`），完整的新旧名对照表见
@@ -47,13 +51,13 @@ vmware-policy ≥ 1.18 下仍然生效（`vmware-audit policy` 会列出因改�
 
 ```bash
 # 通过 uv 安装（推荐）
-uv tool install vmware-avi
+uv tool install vmware-avi==2.5.0
 
 # 或通过 pip 安装
-pip install vmware-avi
+pip install vmware-avi==2.5.0
 
 # 国内镜像加速
-pip install vmware-avi -i https://pypi.tuna.tsinghua.edu.cn/simple
+pip install vmware-avi==2.5.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 验证安装
 vmware-avi doctor
@@ -326,7 +330,7 @@ vmware-avi ako amko status
 
 MCP server 通过 [Model Context Protocol](https://modelcontextprotocol.io) 暴露全部 28 个工具，适配任何 MCP 兼容客户端。
 
-**v1.5.15+ 推荐方式**：完成 `uv tool install vmware-avi` 后，**一条命令启动 MCP**：
+**v1.5.15+ 推荐方式**：完成 `uv tool install vmware-avi==2.5.0` 后，**一条命令启动 MCP**：
 
 ```bash
 # 推荐 — 单命令，无网络依赖
@@ -359,7 +363,7 @@ VMWARE_AVI_CONFIG=/path/to/config.yaml vmware-avi mcp
 
 ```bash
 # 不想安装，临时运行（每次需要联网 resolve 依赖）
-uvx --from vmware-avi vmware-avi mcp
+uvx --from vmware-avi==2.5.0 vmware-avi mcp
 
 # 旧 entry point（仍可用，向后兼容）
 vmware-avi-mcp
@@ -520,7 +524,7 @@ vmware-avi-mcp
 
 | 技能 | 范围 | 工具数 | 安装 |
 |------|------|:------:|------|
-| **[vmware-avi](https://github.com/vmware-skills/VMware-AVI)** | AVI 负载均衡、AKO K8s 运维 | 28 | `uv tool install vmware-avi` |
+| **[vmware-avi](https://github.com/vmware-skills/VMware-AVI)** | AVI 负载均衡、AKO K8s 运维 | 28 | `uv tool install vmware-avi==2.5.0` |
 | **[vmware-aiops](https://github.com/vmware-skills/VMware-AIops)** | VM 生命周期、部署、Guest Ops、集群 | 49 | `uv tool install vmware-aiops` |
 | **[vmware-monitor](https://github.com/vmware-skills/VMware-Monitor)** | 只读监控、告警、事件 | 27 | `uv tool install vmware-monitor` |
 | **[vmware-storage](https://github.com/vmware-skills/VMware-Storage)** | 数据存储、iSCSI、vSAN | 11 | `uv tool install vmware-storage` |

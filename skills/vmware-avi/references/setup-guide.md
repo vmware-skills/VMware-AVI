@@ -47,14 +47,17 @@ git clone --branch v2.5.0 https://github.com/vmware-skills/VMware-AVI.git
 cd VMware-AVI
 
 # Build
-docker build -t vmware-avi-mcp .
+docker build -t vmware-avi-mcp:2.5.0 .
 
 # Run — mount your config directory into the container
-docker run -i --rm \
+docker run --pull=never -i --rm \
   -v ~/.vmware-avi:/root/.vmware-avi:ro \
   -e VMWARE_AVI_CONFIG=/root/.vmware-avi/config.yaml \
-  vmware-avi-mcp
+  vmware-avi-mcp:2.5.0
 ```
+
+These commands run the image built locally above; `--pull=never` prevents a missing local image from falling back to a registry. The version tag identifies this build, not an immutable digest.
+
 
 The container's `CMD` is `python -m vmware_avi.mcp_server`, which is wired through `vmware_avi/mcp_server/__main__.py` to the same FastMCP entry point as the CLI subcommand. All 28 tools are available.
 
@@ -349,7 +352,7 @@ Add to `~/.claude.json` (global) or `.mcp.json` (project-level):
 ```
 
 > v1.5.15+ recommends the single-command form `vmware-avi mcp`. Pre-1.5.15 used
-> `uvx --from vmware-avi vmware-avi-mcp`, which still works but re-resolves from <!-- install-pin: historical -->
+> `uvx --from vmware-avi==2.5.0 vmware-avi-mcp`, which still works but re-resolves from
 > PyPI on each launch and breaks behind corporate TLS proxies. The legacy
 > `vmware-avi-mcp` entry point is also kept for backward compatibility.
 
@@ -406,17 +409,14 @@ vmware-avi init    # generates ~/.vmware-avi/config.yaml and .env
 The environment variable name must match `<CONTROLLER_NAME>_PASSWORD` with the controller name uppercased and hyphens replaced by underscores. Check:
 
 ```bash
-# If controller name is "prod-avi", the variable must be:
-export PROD_AVI_PASSWORD=yourpassword
-
-# Or set it in ~/.vmware-avi/.env:
-echo 'PROD_AVI_PASSWORD=yourpassword' >> ~/.vmware-avi/.env
+# For controller "prod-avi", inject PROD_AVI_PASSWORD via a secret manager.
+# Or edit the owner-only ~/.vmware-avi/.env locally; never paste secrets in commands.
 ```
 
 ### "Controller unreachable" in doctor
 
 1. Verify the `host` and `port` in config.yaml are correct
-2. Test network connectivity: `curl -k https://avi-controller.example.com/api/cluster`
+2. Test network connectivity: `curl --cacert /path/to/controller-ca.pem https://avi-controller.example.com/api/cluster`
 3. For a self-signed certificate on an isolated lab controller only, set `verify_ssl: false` on that entry; for a private-CA certificate, trust that CA instead of turning verification off
 4. Check if a firewall or VPN is blocking port 443
 
