@@ -80,7 +80,7 @@ rendering a template prints the values it was handed.
 This project is scanned with [Bandit](https://bandit.readthedocs.io/) before every release, targeting 0 Medium+ issues:
 
 ```bash
-uvx bandit -r vmware_avi/
+uvx bandit==1.9.4 -r vmware_avi/
 ```
 
 ## Supported Versions

@@ -35,6 +35,10 @@ AVI (NSX Advanced Load Balancer) management and AKO Kubernetes operations tool �
 
 ---
 
+Container examples build a local version-tagged image and run it with `--pull=never`, avoiding registry fallback. A local version tag is not an immutable image digest.
+
+Keep TLS verification enabled and trust private CAs with `SSL_CERT_FILE`. Disabling certificate/hostname checks is an isolated-lab exception and permits endpoint impersonation and credential interception.
+
 ## Upgrading to 2.0
 
 2.0 renames all 28 MCP tools so every name starts with a verb (e.g. `ako_amko_status` → `get_ako_amko_status`, `ako_clusters` → `list_ako_clusters`, `ako_config_diff` → `diff_ako_config`). The full old → new table is in
@@ -49,13 +53,13 @@ against both the old and the new name, so one file serves both.
 
 ```bash
 # Via uv (recommended)
-uv tool install vmware-avi
+uv tool install vmware-avi==2.5.0
 
 # Or via pip
-pip install vmware-avi
+pip install vmware-avi==2.5.0
 
 # China mainland mirror
-pip install vmware-avi -i https://pypi.tuna.tsinghua.edu.cn/simple
+pip install vmware-avi==2.5.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # Verify installation
 vmware-avi doctor
@@ -329,7 +333,7 @@ vmware-avi ako amko status
 
 The MCP server exposes all 28 tools via the [Model Context Protocol](https://modelcontextprotocol.io). Works with any MCP-compatible client.
 
-**After `uv tool install vmware-avi`, start the MCP server with one command** (v1.5.15+):
+**After `uv tool install vmware-avi==2.5.0`, start the MCP server with one command** (v1.5.15+):
 
 ```bash
 # Recommended — single command, no network re-resolve
@@ -362,7 +366,7 @@ Add to `claude_desktop_config.json`:
 
 ```bash
 # Run without installing (requires PyPI access each launch)
-uvx --from vmware-avi vmware-avi mcp
+uvx --from vmware-avi==2.5.0 vmware-avi mcp
 
 # Legacy entry point (still works, kept for backward compatibility)
 vmware-avi-mcp
@@ -523,7 +527,7 @@ Force resync triggers AKO to re-reconcile all K8s objects. If the drift persists
 
 | Skill | Scope | Tools | Install |
 |-------|-------|:-----:|---------|
-| **[vmware-avi](https://github.com/vmware-skills/VMware-AVI)** | AVI load balancer, AKO K8s operations | 28 | `uv tool install vmware-avi` |
+| **[vmware-avi](https://github.com/vmware-skills/VMware-AVI)** | AVI load balancer, AKO K8s operations | 28 | `uv tool install vmware-avi==2.5.0` |
 | **[vmware-aiops](https://github.com/vmware-skills/VMware-AIops)** | VM lifecycle, deployment, guest ops, cluster | 49 | `uv tool install vmware-aiops` |
 | **[vmware-monitor](https://github.com/vmware-skills/VMware-Monitor)** | Read-only monitoring, alarms, events | 27 | `uv tool install vmware-monitor` |
 | **[vmware-storage](https://github.com/vmware-skills/VMware-Storage)** | Datastores, iSCSI, vSAN | 11 | `uv tool install vmware-storage` |
