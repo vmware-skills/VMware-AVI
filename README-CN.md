@@ -1,16 +1,25 @@
 <!-- mcp-name: io.github.vmware-skills/vmware-avi -->
 
-MCP 2.5 迁移：工具参数中的旧 `confirmed` / `dry_run` 已移除；请求执行时使用 `confirm=true`，省略 `confirm` 则预览。旧参数会被拒绝且不执行写入，CLI 的 dry-run 选项不变。
-
 # VMware AVI
 
-要用自己的模型和 Agent 平台进行只读自测，请看 marketplace 根目录的[共享模型适配自测任务](https://github.com/vmware-skills/marketplace/blob/main/MODEL_FIT_SELF_TEST.md)。
-
-> **作者**: Wei Zhou, VMware by Broadcom — zhouwei008@gmail.com
-> 本项目由 VMware 工程师维护的社区项目，非 VMware 官方产品。
-> VMware 官方开发者工具请访问 [developer.broadcom.com](https://developer.broadcom.com)。
+[![PyPI](https://img.shields.io/pypi/v/vmware-avi)](https://pypi.org/project/vmware-avi/) [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](#readme-license)
 
 [English](README.md) | 中文
+
+维护者: Wei Zhou · [zhouwei008@gmail.com](mailto:zhouwei008@gmail.com)
+
+社区维护的开源项目，非 VMware 或 Broadcom 官方产品。
+
+[概述](#readme-overview) · [快速开始](#readme-quick-start) · [MCP 配置](#readme-mcp-configuration) · [能力与工作流](#readme-capabilities-and-workflows) · [安全与审计](#readme-safety-and-audit) · [故障排查](#readme-troubleshooting) · [配套 Skills](#readme-companion-skills) · [参考资料](#readme-reference) · [许可证](#readme-license)
+
+<a id="readme-overview"></a>
+
+## 概述
+
+默认通过本地 Stdio 运行；请在本机配置所需目标和凭据。
+
+MCP 2.5 迁移：工具参数中的旧 `confirmed` / `dry_run` 已移除；请求执行时使用 `confirm=true`，省略 `confirm` 则预览。旧参数会被拒绝且不执行写入，CLI 的 dry-run 选项不变。
+
 
 AVI（NSX 高级负载均衡器）管理与 AKO Kubernetes 运维工具 — 10 大类 28 个工具。
 
@@ -28,10 +37,6 @@ AVI（NSX 高级负载均衡器）管理与 AKO Kubernetes 运维工具 — 10 �
 > | **[vmware-nsx-security](https://github.com/vmware-skills/VMware-NSX-Security)** | DFW 防火墙规则、安全组 | `uv tool install vmware-nsx-security` |
 > | **[vmware-aria](https://github.com/vmware-skills/VMware-Aria)** | Aria Ops：指标、告警、容量 | `uv tool install vmware-aria` |
 
-[![PyPI](https://img.shields.io/pypi/v/vmware-avi)](https://pypi.org/project/vmware-avi/)
-[![Python](https://img.shields.io/pypi/pyversions/vmware-avi)](https://pypi.org/project/vmware-avi/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![ClawHub](https://img.shields.io/badge/ClawHub-vmware--avi-orange)](https://clawhub.ai/skills/vmware-avi)
 
 ---
 
@@ -39,15 +44,25 @@ AVI（NSX 高级负载均衡器）管理与 AKO Kubernetes 运维工具 — 10 �
 
 保持 TLS 校验开启，私有 CA 通过 `SSL_CERT_FILE` 加入信任。关闭证书/主机名校验仅限隔离实验环境，会允许端点冒充和凭据拦截。
 
-## 升级到 2.0
+完整的 Agent 指令见 [`skills/vmware-avi/SKILL.md`](skills/vmware-avi/SKILL.md).
 
-2.0 把全部 28 个 MCP 工具改成动词在前（例如 `ako_amko_status` → `get_ako_amko_status`, `ako_clusters` → `list_ako_clusters`, `ako_config_diff` → `diff_ako_config`），完整的新旧名对照表见
-[RELEASE_NOTES.md](RELEASE_NOTES.md#v200--mcp-tools-renamed-verb-first)。其他都不变：工具、参数、安全确认门和 CLI 命令都一样。
-如果 agent 提示词、脚本或 `~/.vmware/rules.yaml` 里写了工具名，请改成新名——不过用旧名写的 deny 规则在
-vmware-policy ≥ 1.18 下仍然生效（`vmware-audit policy` 会列出因改名而多匹配的规则），vmware-pilot ≥ 1.13 也会自动转换已保存工作流里的旧名。
-如果还有 2.0 之前的安装共用这个 `rules.yaml`，请把它的 vmware-policy 也升到 ≥ 1.18.2：它会按新旧两个名字匹配每条规则，一份文件两边都管用。
+<a id="readme-quick-start"></a>
 
-## 快速安装
+## 快速开始
+
+需要 Python `>=3.10` 和 `uv`。
+
+```bash
+uv tool install vmware-avi==2.5.0
+vmware-avi --help
+```
+
+目标、凭据和本地数据目录设置见 [setup guide](skills/vmware-avi/references/setup-guide.md).
+
+<details>
+<summary>安装与配置详情（含离线安装）</summary>
+
+### 快速安装
 
 ```bash
 # 通过 uv 安装（推荐）
@@ -63,7 +78,7 @@ pip install vmware-avi==2.5.0 -i https://pypi.tuna.tsinghua.edu.cn/simple
 vmware-avi doctor
 ```
 
-### 离线 / 气隙环境安装（从源码）
+#### 离线 / 气隙环境安装（从源码）
 
 本项目采用现代 PEP 517 构建系统（hatchling），因此**刻意不提供 `setup.py`**
 —— 这是预期行为，不是文件缺失。如果你克隆源码后遇到
@@ -93,52 +108,10 @@ pip install --no-index --find-links dist vmware-avi
 
 ---
 
-## 功能概览
 
-### 本技能包含
+### 配置
 
-| 类别 | 工具 | 数量 |
-|------|------|:----:|
-| **虚拟服务** | 列表、状态、启用/禁用 | 3 |
-| **池成员** | 池发现、成员列表、启用/禁用成员（流量排干/恢复） | 4 |
-| **SSL 证书** | 列表、过期检查 | 2 |
-| **分析** | VS 指标概览、请求错误日志 | 2 |
-| **服务引擎** | 列表、健康检查 | 2 |
-| **AKO Pod 运维** | 状态、日志、重启、版本信息 | 4 |
-| **AKO 配置** | values.yaml 查看、Helm diff、Helm upgrade | 3 |
-| **Ingress 诊断** | 注解验证、VS 映射、错误诊断、修复建议 | 4 |
-| **同步诊断** | K8s-Controller 对比、不一致列表、强制同步 | 3 |
-| **多集群** | 集群列表、跨集群 AKO 概览、AMKO 状态 | 3 |
-
-### CLI 与 MCP：如何选择
-
-| 场景 | 推荐 | 原因 |
-|------|:----:|------|
-| **本地/小模型**（Ollama、Qwen） | **CLI** | 约 2K token vs MCP 约 8K |
-| **云端模型**（Claude、GPT-4o） | 均可 | MCP 提供结构化 JSON 输入输出 |
-| **自动化流水线** | **MCP** | 类型安全参数、结构化输出 |
-| **AKO 问题排查** | **CLI** | 交互式日志跟踪、Helm diff 输出 |
-
-> **经验法则**：小模型用 CLI 省 token，大模型用 MCP 做结构化自动化。
-
-### 架构
-
-```
-用户（自然语言）
-  |
-AI CLI 工具（Claude Code / Gemini / Codex / Cursor / Trae）
-  | 读取 SKILL.md
-  |
-vmware-avi CLI
-  |--- avisdk（AVI REST API）---> AVI Controller ---> 虚拟服务 / 池 / 服务引擎
-  |--- kubectl / kubernetes ---> K8s 集群 ---> AKO Pod / Ingress / Service
-```
-
----
-
-## 配置
-
-### 第 1 步：创建配置目录
+#### 第 1 步：创建配置目录
 
 ```bash
 mkdir -p ~/.vmware-avi
@@ -146,7 +119,7 @@ vmware-avi init          # 生成 config.yaml 和 .env 模板
 chmod 600 ~/.vmware-avi/.env
 ```
 
-### 第 2 步：编辑 config.yaml
+#### 第 2 步：编辑 config.yaml
 
 ```yaml
 controllers:
@@ -166,7 +139,7 @@ ako:
   namespace: avi-system
 ```
 
-### 第 3 步：设置密码
+#### 第 3 步：设置密码
 
 创建 `~/.vmware-avi/.env`：
 
@@ -184,7 +157,7 @@ VMWARE_AVI_{控制器名大写}_PASSWORD
 # 示例：控制器 "staging-alb" -> STAGING_ALB_PASSWORD
 ```
 
-### 第 4 步：验证
+#### 第 4 步：验证
 
 ```bash
 vmware-avi doctor    # 检查 Controller 连通性 + kubeconfig + avisdk
@@ -192,141 +165,35 @@ vmware-avi doctor    # 检查 Controller 连通性 + kubeconfig + avisdk
 
 ---
 
-## CLI 使用
 
-### 虚拟服务管理
+</details>
 
-```bash
-# 列出所有虚拟服务
-vmware-avi vs list [--controller prod-avi]
+<a id="readme-mcp-configuration"></a>
 
-# 查看特定 VS 状态
-vmware-avi vs status my-webapp-vs
+## MCP 配置
 
-# 启用 / 禁用 VS（禁用需双重确认）
-vmware-avi vs enable my-webapp-vs
-vmware-avi vs disable my-webapp-vs
+将以下配置复制到 MCP 客户端的本地 Stdio 配置中。客户端需要能找到 `uvx`；首次安装所需包时需要访问包源。
+
+```json
+{
+  "mcpServers": {
+    "vmware-avi": {
+      "command": "uvx",
+      "args": ["--from", "vmware-avi==2.5.0", "vmware-avi-mcp"],
+      "env": {
+        "VMWARE_AVI_CONFIG": "~/.vmware-avi/config.yaml"
+      }
+    }
+  }
+}
 ```
 
-### 池成员排干/恢复
+以下保留预先安装 CLI 的用法及各工具特有的 MCP 选项。
 
-```bash
-# 列出池成员及健康状态
-vmware-avi pool members my-pool
+<details>
+<summary>预先安装的 CLI 与其他 MCP 选项</summary>
 
-# 优雅排干（禁用）— 需双重确认
-vmware-avi pool disable my-pool 10.1.1.5
-
-# 恢复流量（启用）
-vmware-avi pool enable my-pool 10.1.1.5
-```
-
-### SSL 证书过期检查
-
-```bash
-# 列出所有证书
-vmware-avi ssl list
-
-# 检查 30 天内到期的证书
-vmware-avi ssl expiry --days 30
-```
-
-### 分析与错误日志
-
-```bash
-# VS 分析：吞吐量、延迟、错误率
-vmware-avi analytics my-webapp-vs
-
-# 请求错误日志
-vmware-avi logs my-webapp-vs --since 1h
-```
-
-### 服务引擎健康
-
-```bash
-# 名称、管理 IP、运行状态、SE 组 — 状态来自 serviceengine-inventory
-# 端点（config + runtime 合并数据）
-vmware-avi se list
-
-# 每个 SE 的运行状态 + 关联 VS 数量
-vmware-avi se health
-```
-
-### AKO 问题排查
-
-```bash
-# 检查 AKO Pod 状态
-vmware-avi ako status [--context my-k8s-context]
-
-# 查看 AKO 日志
-vmware-avi ako logs [--tail 100] [--since 30m]
-
-# 重启 AKO Pod（双重确认）
-vmware-avi ako restart
-
-# 查看 AKO 版本
-vmware-avi ako version
-```
-
-### AKO Helm 配置管理
-
-AKO 的 Helm release 会自动发现（官方安装方式使用 `helm install --generate-name`，
-release 名称并不固定为 `ako`）。升级时从 Broadcom 官方 OCI chart
-`oci://projects.packages.broadcom.com/ako/helm-charts/ako` 拉取，并附带 `--reuse-values`。
-
-```bash
-# 查看当前 AKO Helm 值（release 自动发现）
-vmware-avi ako config show
-
-# 显示待生效变更（与官方 OCI chart 对比 diff）
-vmware-avi ako config diff
-
-# Helm 升级（双重确认 + 默认 --dry-run）
-vmware-avi ako config upgrade
-```
-
-### Ingress 诊断
-
-```bash
-# 验证 Ingress 注解
-vmware-avi ako ingress check <namespace>
-
-# 显示 Ingress 到 VS 的映射
-vmware-avi ako ingress map
-
-# 诊断为何 Ingress 没有生成 VS
-vmware-avi ako ingress diagnose <ingress-name>
-```
-
-### 同步诊断
-
-```bash
-# 检查 K8s-Controller 同步状态
-vmware-avi ako sync status
-
-# 显示 K8s 与 Controller 之间的不一致
-vmware-avi ako sync diff
-
-# 强制 AKO 重新同步（双重确认）
-vmware-avi ako sync force
-```
-
-### 多集群 AKO
-
-```bash
-# 列出所有 kube-context 及其上是否运行 AKO
-vmware-avi ako clusters
-
-# 跨集群 AKO 状态概览
-vmware-avi ako cluster-overview
-
-# AMKO GSLB 状态
-vmware-avi ako amko status
-```
-
----
-
-## MCP Server
+### MCP Server
 
 MCP server 通过 [Model Context Protocol](https://modelcontextprotocol.io) 暴露全部 28 个工具，适配任何 MCP 兼容客户端。
 
@@ -340,7 +207,7 @@ vmware-avi mcp
 VMWARE_AVI_CONFIG=/path/to/config.yaml vmware-avi mcp
 ```
 
-### Claude Desktop 配置
+#### Claude Desktop 配置
 
 添加到 `claude_desktop_config.json`：
 
@@ -374,7 +241,7 @@ vmware-avi-mcp
 
 </details>
 
-### MCP 工具列表（28 个）
+#### MCP 工具列表（28 个）
 
 | 类别 | 工具 |
 |------|------|
@@ -391,9 +258,193 @@ vmware-avi-mcp
 
 ---
 
-## 常见工作流
 
-### 1. 维护窗口 -- 排干池成员
+</details>
+
+<a id="readme-capabilities-and-workflows"></a>
+
+## 能力与工作流
+
+### 功能概览
+
+#### 本技能包含
+
+| 类别 | 工具 | 数量 |
+|------|------|:----:|
+| **虚拟服务** | 列表、状态、启用/禁用 | 3 |
+| **池成员** | 池发现、成员列表、启用/禁用成员（流量排干/恢复） | 4 |
+| **SSL 证书** | 列表、过期检查 | 2 |
+| **分析** | VS 指标概览、请求错误日志 | 2 |
+| **服务引擎** | 列表、健康检查 | 2 |
+| **AKO Pod 运维** | 状态、日志、重启、版本信息 | 4 |
+| **AKO 配置** | values.yaml 查看、Helm diff、Helm upgrade | 3 |
+| **Ingress 诊断** | 注解验证、VS 映射、错误诊断、修复建议 | 4 |
+| **同步诊断** | K8s-Controller 对比、不一致列表、强制同步 | 3 |
+| **多集群** | 集群列表、跨集群 AKO 概览、AMKO 状态 | 3 |
+
+#### CLI 与 MCP：如何选择
+
+| 场景 | 推荐 | 原因 |
+|------|:----:|------|
+| **本地/小模型**（Ollama、Qwen） | **CLI** | 约 2K token vs MCP 约 8K |
+| **云端模型**（Claude、GPT-4o） | 均可 | MCP 提供结构化 JSON 输入输出 |
+| **自动化流水线** | **MCP** | 类型安全参数、结构化输出 |
+| **AKO 问题排查** | **CLI** | 交互式日志跟踪、Helm diff 输出 |
+
+> **经验法则**：小模型用 CLI 省 token，大模型用 MCP 做结构化自动化。
+
+#### 架构
+
+```
+用户（自然语言）
+  |
+AI CLI 工具（Claude Code / Gemini / Codex / Cursor / Trae）
+  | 读取 SKILL.md
+  |
+vmware-avi CLI
+  |--- avisdk（AVI REST API）---> AVI Controller ---> 虚拟服务 / 池 / 服务引擎
+  |--- kubectl / kubernetes ---> K8s 集群 ---> AKO Pod / Ingress / Service
+```
+
+---
+
+### CLI 使用
+
+#### 虚拟服务管理
+
+```bash
+# 列出所有虚拟服务
+vmware-avi vs list [--controller prod-avi]
+
+# 查看特定 VS 状态
+vmware-avi vs status my-webapp-vs
+
+# 启用 / 禁用 VS（禁用需双重确认）
+vmware-avi vs enable my-webapp-vs
+vmware-avi vs disable my-webapp-vs
+```
+
+#### 池成员排干/恢复
+
+```bash
+# 列出池成员及健康状态
+vmware-avi pool members my-pool
+
+# 优雅排干（禁用）— 需双重确认
+vmware-avi pool disable my-pool 10.1.1.5
+
+# 恢复流量（启用）
+vmware-avi pool enable my-pool 10.1.1.5
+```
+
+#### SSL 证书过期检查
+
+```bash
+# 列出所有证书
+vmware-avi ssl list
+
+# 检查 30 天内到期的证书
+vmware-avi ssl expiry --days 30
+```
+
+#### 分析与错误日志
+
+```bash
+# VS 分析：吞吐量、延迟、错误率
+vmware-avi analytics my-webapp-vs
+
+# 请求错误日志
+vmware-avi logs my-webapp-vs --since 1h
+```
+
+#### 服务引擎健康
+
+```bash
+# 名称、管理 IP、运行状态、SE 组 — 状态来自 serviceengine-inventory
+# 端点（config + runtime 合并数据）
+vmware-avi se list
+
+# 每个 SE 的运行状态 + 关联 VS 数量
+vmware-avi se health
+```
+
+#### AKO 问题排查
+
+```bash
+# 检查 AKO Pod 状态
+vmware-avi ako status [--context my-k8s-context]
+
+# 查看 AKO 日志
+vmware-avi ako logs [--tail 100] [--since 30m]
+
+# 重启 AKO Pod（双重确认）
+vmware-avi ako restart
+
+# 查看 AKO 版本
+vmware-avi ako version
+```
+
+#### AKO Helm 配置管理
+
+AKO 的 Helm release 会自动发现（官方安装方式使用 `helm install --generate-name`，
+release 名称并不固定为 `ako`）。升级时从 Broadcom 官方 OCI chart
+`oci://projects.packages.broadcom.com/ako/helm-charts/ako` 拉取，并附带 `--reuse-values`。
+
+```bash
+# 查看当前 AKO Helm 值（release 自动发现）
+vmware-avi ako config show
+
+# 显示待生效变更（与官方 OCI chart 对比 diff）
+vmware-avi ako config diff
+
+# Helm 升级（双重确认 + 默认 --dry-run）
+vmware-avi ako config upgrade
+```
+
+#### Ingress 诊断
+
+```bash
+# 验证 Ingress 注解
+vmware-avi ako ingress check <namespace>
+
+# 显示 Ingress 到 VS 的映射
+vmware-avi ako ingress map
+
+# 诊断为何 Ingress 没有生成 VS
+vmware-avi ako ingress diagnose <ingress-name>
+```
+
+#### 同步诊断
+
+```bash
+# 检查 K8s-Controller 同步状态
+vmware-avi ako sync status
+
+# 显示 K8s 与 Controller 之间的不一致
+vmware-avi ako sync diff
+
+# 强制 AKO 重新同步（双重确认）
+vmware-avi ako sync force
+```
+
+#### 多集群 AKO
+
+```bash
+# 列出所有 kube-context 及其上是否运行 AKO
+vmware-avi ako clusters
+
+# 跨集群 AKO 状态概览
+vmware-avi ako cluster-overview
+
+# AMKO GSLB 状态
+vmware-avi ako amko status
+```
+
+---
+
+### 常见工作流
+
+#### 1. 维护窗口 -- 排干池成员
 
 服务器补丁维护前需优雅排干流量：
 
@@ -419,7 +470,7 @@ vmware-avi-mcp
    vmware-avi pool members my-pool
    ```
 
-### 2. AKO Ingress 未创建 VS
+#### 2. AKO Ingress 未创建 VS
 
 开发者反馈 Ingress 没有生成虚拟服务时的排查路径：
 
@@ -445,7 +496,7 @@ vmware-avi-mcp
    vmware-avi ako sync force
    ```
 
-### 3. SSL 证书过期审计
+#### 3. SSL 证书过期审计
 
 证书过期会导致服务中断，定期检查至关重要：
 
@@ -462,41 +513,11 @@ vmware-avi-mcp
 
 ---
 
-## 常见问题排查
+<a id="readme-safety-and-audit"></a>
 
-### "Controller unreachable" 错误
+## 安全与审计
 
-1. 运行 `vmware-avi doctor` 验证连通性
-2. 检查 `~/.vmware-avi/config.yaml` 中的控制器地址和端口是否正确
-3. 自签名证书场景：在 config.yaml 中设置 `verify_ssl: false`（仅限实验环境）
-
-### AKO Pod 处于 CrashLoopBackOff
-
-1. 查看日志：`vmware-avi ako logs --tail 50`
-2. 常见原因：values.yaml 中控制器 IP 错误、网络策略阻止 AKO 访问 Controller、凭据过期
-3. 修复配置：`vmware-avi ako config show` 检查当前配置，然后用 `vmware-avi ako config upgrade` 更新（release 自动发现；从 Broadcom 官方 OCI chart 拉取）
-
-### 创建了 Ingress 但 Controller 上没有 VS
-
-1. 验证注解：`vmware-avi ako ingress check <namespace>`
-2. 检查 AKO 日志中的拒绝原因：`vmware-avi ako logs --since 5m`
-3. 运行同步 diff：`vmware-avi ako sync diff` 查看对象是否卡住
-
-### 池成员启用后仍显示 "down"
-
-健康检查可能仍在失败。成员已启用但不健康。检查 Controller 端的实际健康状态，先修复后端服务，健康状态会自动恢复。
-
-### SSL 过期检查显示 0 个证书
-
-确认控制器连接具有租户级别的访问权限。AVI 中证书是按租户隔离的，配置的用户可能只能看到其所在租户的证书。
-
-### AKO sync force 无效
-
-强制同步会触发 AKO 重新协调所有 K8s 对象。如果偏差持续存在，问题很可能在 K8s 资源定义本身（注解错误、Secret 缺失）。使用 `vmware-avi ako ingress diagnose` 定位根因。
-
----
-
-## 安全特性
+### 安全特性
 
 | 特性 | 说明 |
 |------|------|
@@ -509,7 +530,7 @@ vmware-avi-mcp
 | **注入防护** | 所有 API 返回文本截断（最多 500 字符）并清除 C0/C1 控制字符 |
 | **输入验证** | 池名、VS 名、IP 地址、命名空间名在 API 调用前均经过验证 |
 
-### 安全详情
+#### 安全详情
 
 - **源代码**：[github.com/vmware-skills/VMware-AVI](https://github.com/vmware-skills/VMware-AVI)
 - **配置文件内容**：`config.yaml` 仅存储控制器地址、用户名和 AKO 设置。不含密码或 token。所有密钥仅存于 `.env`
@@ -520,28 +541,7 @@ vmware-avi-mcp
 
 ---
 
-## 配套技能
-
-| 技能 | 范围 | 工具数 | 安装 |
-|------|------|:------:|------|
-| **[vmware-avi](https://github.com/vmware-skills/VMware-AVI)** | AVI 负载均衡、AKO K8s 运维 | 28 | `uv tool install vmware-avi==2.5.0` |
-| **[vmware-aiops](https://github.com/vmware-skills/VMware-AIops)** | VM 生命周期、部署、Guest Ops、集群 | 49 | `uv tool install vmware-aiops` |
-| **[vmware-monitor](https://github.com/vmware-skills/VMware-Monitor)** | 只读监控、告警、事件 | 27 | `uv tool install vmware-monitor` |
-| **[vmware-storage](https://github.com/vmware-skills/VMware-Storage)** | 数据存储、iSCSI、vSAN | 11 | `uv tool install vmware-storage` |
-| **[vmware-vks](https://github.com/vmware-skills/VMware-VKS)** | Tanzu 命名空间、TKC 集群生命周期 | 20 | `uv tool install vmware-vks` |
-| **[vmware-nsx](https://github.com/vmware-skills/VMware-NSX)** | NSX Segment、网关、NAT、路由 | 33 | `uv tool install vmware-nsx-mgmt` |
-| **[vmware-nsx-security](https://github.com/vmware-skills/VMware-NSX-Security)** | DFW 防火墙、安全组、IDS/IPS | 21 | `uv tool install vmware-nsx-security` |
-| **[vmware-aria](https://github.com/vmware-skills/VMware-Aria)** | Aria Ops：指标、告警、容量 | 28 | `uv tool install vmware-aria` |
-| **[vmware-harden](https://github.com/vmware-skills/VMware-Harden)** | 合规基线、Drift 检测 | 6 | `uv tool install vmware-harden` |
-
----
-
-## 问题反馈与贡献
-
-如果遇到任何错误或问题，请将错误信息、日志或截图发送至 **zhouwei008@gmail.com**。欢迎参与贡献，一起维护和改进本项目！
-
-<!-- usage: remote-and-exposure -->
-## 远程访问（HTTPS）与限制工具
+### 远程访问（HTTPS）与限制工具
 
 默认情况下 `vmware-avi mcp` 通过 stdio 服务一个本地客户端，并提供全部工具。以下两个选项可以改变这一点
 （需 vmware-policy ≥ 1.21.0）。
@@ -603,6 +603,90 @@ vmware-avi mcp --expose read --allow-write disable_lb_pool_member
 这只限制提供给客户端的工具，不是授权；账号本身仍应遵循最小权限。
 
 详见 `skills/vmware-avi/references/setup-guide.md`（"Serving MCP over HTTPS"、"Limiting which tools are offered"）。
+
+<a id="readme-troubleshooting"></a>
+
+## 故障排查
+
+### 常见问题排查
+
+#### "Controller unreachable" 错误
+
+1. 运行 `vmware-avi doctor` 验证连通性
+2. 检查 `~/.vmware-avi/config.yaml` 中的控制器地址和端口是否正确
+3. 自签名证书场景：在 config.yaml 中设置 `verify_ssl: false`（仅限实验环境）
+
+#### AKO Pod 处于 CrashLoopBackOff
+
+1. 查看日志：`vmware-avi ako logs --tail 50`
+2. 常见原因：values.yaml 中控制器 IP 错误、网络策略阻止 AKO 访问 Controller、凭据过期
+3. 修复配置：`vmware-avi ako config show` 检查当前配置，然后用 `vmware-avi ako config upgrade` 更新（release 自动发现；从 Broadcom 官方 OCI chart 拉取）
+
+#### 创建了 Ingress 但 Controller 上没有 VS
+
+1. 验证注解：`vmware-avi ako ingress check <namespace>`
+2. 检查 AKO 日志中的拒绝原因：`vmware-avi ako logs --since 5m`
+3. 运行同步 diff：`vmware-avi ako sync diff` 查看对象是否卡住
+
+#### 池成员启用后仍显示 "down"
+
+健康检查可能仍在失败。成员已启用但不健康。检查 Controller 端的实际健康状态，先修复后端服务，健康状态会自动恢复。
+
+#### SSL 过期检查显示 0 个证书
+
+确认控制器连接具有租户级别的访问权限。AVI 中证书是按租户隔离的，配置的用户可能只能看到其所在租户的证书。
+
+#### AKO sync force 无效
+
+强制同步会触发 AKO 重新协调所有 K8s 对象。如果偏差持续存在，问题很可能在 K8s 资源定义本身（注解错误、Secret 缺失）。使用 `vmware-avi ako ingress diagnose` 定位根因。
+
+---
+
+### 问题反馈与贡献
+
+如果遇到任何错误或问题，请将错误信息、日志或截图发送至 **zhouwei008@gmail.com**。欢迎参与贡献，一起维护和改进本项目！
+
+<!-- usage: remote-and-exposure -->
+
+<a id="readme-companion-skills"></a>
+
+## 配套 Skills
+
+VMware Skills 家族包含 14 个 MCP Server 和共享 Policy 库。按职责选择工具： [vmware-skills](https://github.com/vmware-skills).
+
+### 配套技能
+
+| 技能 | 范围 | 工具数 | 安装 |
+|------|------|:------:|------|
+| **[vmware-avi](https://github.com/vmware-skills/VMware-AVI)** | AVI 负载均衡、AKO K8s 运维 | 28 | `uv tool install vmware-avi==2.5.0` |
+| **[vmware-aiops](https://github.com/vmware-skills/VMware-AIops)** | VM 生命周期、部署、Guest Ops、集群 | 49 | `uv tool install vmware-aiops` |
+| **[vmware-monitor](https://github.com/vmware-skills/VMware-Monitor)** | 只读监控、告警、事件 | 27 | `uv tool install vmware-monitor` |
+| **[vmware-storage](https://github.com/vmware-skills/VMware-Storage)** | 数据存储、iSCSI、vSAN | 11 | `uv tool install vmware-storage` |
+| **[vmware-vks](https://github.com/vmware-skills/VMware-VKS)** | Tanzu 命名空间、TKC 集群生命周期 | 20 | `uv tool install vmware-vks` |
+| **[vmware-nsx](https://github.com/vmware-skills/VMware-NSX)** | NSX Segment、网关、NAT、路由 | 33 | `uv tool install vmware-nsx-mgmt` |
+| **[vmware-nsx-security](https://github.com/vmware-skills/VMware-NSX-Security)** | DFW 防火墙、安全组、IDS/IPS | 21 | `uv tool install vmware-nsx-security` |
+| **[vmware-aria](https://github.com/vmware-skills/VMware-Aria)** | Aria Ops：指标、告警、容量 | 28 | `uv tool install vmware-aria` |
+| **[vmware-harden](https://github.com/vmware-skills/VMware-Harden)** | 合规基线、Drift 检测 | 6 | `uv tool install vmware-harden` |
+
+---
+
+<a id="readme-reference"></a>
+
+## 参考资料
+
+变更记录： [RELEASE_NOTES.md](RELEASE_NOTES.md).
+
+使用自己的模型和 Agent 宿主进行只读自测： [model-fit self-test](https://github.com/vmware-skills/marketplace/blob/main/MODEL_FIT_SELF_TEST.md).
+
+### 升级到 2.0
+
+2.0 把全部 28 个 MCP 工具改成动词在前（例如 `ako_amko_status` → `get_ako_amko_status`, `ako_clusters` → `list_ako_clusters`, `ako_config_diff` → `diff_ako_config`），完整的新旧名对照表见
+[RELEASE_NOTES.md](RELEASE_NOTES.md#v200--mcp-tools-renamed-verb-first)。其他都不变：工具、参数、安全确认门和 CLI 命令都一样。
+如果 agent 提示词、脚本或 `~/.vmware/rules.yaml` 里写了工具名，请改成新名——不过用旧名写的 deny 规则在
+vmware-policy ≥ 1.18 下仍然生效（`vmware-audit policy` 会列出因改名而多匹配的规则），vmware-pilot ≥ 1.13 也会自动转换已保存工作流里的旧名。
+如果还有 2.0 之前的安装共用这个 `rules.yaml`，请把它的 vmware-policy 也升到 ≥ 1.18.2：它会按新旧两个名字匹配每条规则，一份文件两边都管用。
+
+<a id="readme-license"></a>
 
 ## 许可证
 
