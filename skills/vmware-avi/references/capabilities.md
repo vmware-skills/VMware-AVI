@@ -37,7 +37,7 @@ All 28 MCP tools exposed by `vmware-avi mcp` (v1.5.15+; legacy entry point: `vmw
 | `vmware-avi mcp` (CLI subcommand, stdio) | ✅ Full | ✅ v1.5.15+ default — no PyPI re-resolve, works behind corporate TLS proxies. |
 | `vmware-avi-mcp` (legacy console script, stdio) | ✅ Full | Kept for backward compatibility with pre-1.5.15 configs. |
 | `python -m vmware_avi.mcp_server` (stdio, via `__main__.py`) | ✅ Full | Docker image `CMD` only — not for end-user CLI install, and no longer used by `smithery.yaml` (which now calls the `vmware-avi mcp` entry point). Added v1.5.22. |
-| `uvx --from vmware-avi==2.5.1 vmware-avi-mcp` | ⚠ Fallback | Re-resolves PyPI on each launch; fails behind corporate TLS proxies (踩坑 #25). Use `UV_NATIVE_TLS=true` workaround. |
+| `uvx --from vmware-avi==2.5.2 vmware-avi-mcp` | ⚠ Fallback | Re-resolves PyPI on each launch; fails behind corporate TLS proxies (踩坑 #25). Use `UV_NATIVE_TLS=true` workaround. |
 
 ## Automation Level Reference
 
@@ -55,7 +55,7 @@ Each operation is classified by autonomy level per the Enterprise Harness Engine
 > not from this table — see the README.
 
 **Notes**:
-- L1/L2 tools are always safe for agents to call without confirmation.
+- L1/L2 are infrastructure reads under the configured account; Policy, RBAC and audit still apply. Read access may reveal sensitive inventory.
 - L3 tools always pass through the `@vmware_tool` decorator: connection check → policy check → audit log. The five gated tools then measure their blast radius; without `confirm=true` they stop there, and with it they refuse on a blocker or an unreadable field.
 - AKO Kubernetes operations affect ingress/service routing — even "low-risk" restarts can briefly interrupt traffic; treat as L3 with explicit user approval.
 

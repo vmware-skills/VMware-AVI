@@ -53,7 +53,7 @@ Full agent instructions: [`skills/vmware-avi/SKILL.md`](skills/vmware-avi/SKILL.
 Requires Python `>=3.10` and `uv`.
 
 ```bash
-uv tool install vmware-avi==2.5.1
+uv tool install vmware-avi==2.5.2
 vmware-avi --help
 ```
 
@@ -66,13 +66,13 @@ Target, credential and local data setup: [setup guide](skills/vmware-avi/referen
 
 ```bash
 # Via uv (recommended)
-uv tool install vmware-avi==2.5.1
+uv tool install vmware-avi==2.5.2
 
 # Or via pip
-pip install vmware-avi==2.5.1
+pip install vmware-avi==2.5.2
 
 # China mainland mirror
-pip install vmware-avi==2.5.1 -i https://pypi.tuna.tsinghua.edu.cn/simple
+pip install vmware-avi==2.5.2 -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # Verify installation
 vmware-avi doctor
@@ -179,7 +179,7 @@ Copy this configuration into your MCP client's local stdio settings. The client 
   "mcpServers": {
     "vmware-avi": {
       "command": "uvx",
-      "args": ["--from", "vmware-avi==2.5.1", "vmware-avi-mcp"],
+      "args": ["--from", "vmware-avi==2.5.2", "vmware-avi-mcp"],
       "env": {
         "VMWARE_AVI_CONFIG": "~/.vmware-avi/config.yaml"
       }
@@ -197,7 +197,7 @@ The following sections retain preinstalled CLI alternatives and product-specific
 
 The MCP server exposes all 28 tools via the [Model Context Protocol](https://modelcontextprotocol.io). Works with any MCP-compatible client.
 
-**After `uv tool install vmware-avi==2.5.1`, start the MCP server with one command** (v1.5.15+):
+**After `uv tool install vmware-avi==2.5.2`, start the MCP server with one command** (v1.5.15+):
 
 ```bash
 # Recommended — single command, no network re-resolve
@@ -230,7 +230,7 @@ Add to `claude_desktop_config.json`:
 
 ```bash
 # Run without installing (requires PyPI access each launch)
-uvx --from vmware-avi==2.5.1 vmware-avi mcp
+uvx --from vmware-avi==2.5.2 vmware-avi mcp
 
 # Legacy entry point (still works, kept for backward compatibility)
 vmware-avi-mcp
@@ -661,7 +661,7 @@ The VMware Skills family contains 14 MCP servers and the shared Policy library. 
 
 | Skill | Scope | Tools | Install |
 |-------|-------|:-----:|---------|
-| **[vmware-avi](https://github.com/vmware-skills/VMware-AVI)** | AVI load balancer, AKO K8s operations | 28 | `uv tool install vmware-avi==2.5.1` |
+| **[vmware-avi](https://github.com/vmware-skills/VMware-AVI)** | AVI load balancer, AKO K8s operations | 28 | `uv tool install vmware-avi==2.5.2` |
 | **[vmware-aiops](https://github.com/vmware-skills/VMware-AIops)** | VM lifecycle, deployment, guest ops, cluster | 49 | `uv tool install vmware-aiops` |
 | **[vmware-monitor](https://github.com/vmware-skills/VMware-Monitor)** | Read-only monitoring, alarms, events | 27 | `uv tool install vmware-monitor` |
 | **[vmware-storage](https://github.com/vmware-skills/VMware-Storage)** | Datastores, iSCSI, vSAN | 11 | `uv tool install vmware-storage` |
@@ -713,3 +713,7 @@ against both the old and the new name, so one file serves both.
 ## License
 
 MIT
+
+MCP safety annotations are client hints, not enforced prompts or proof of
+independent human approval. Use the tool's actual preview/confirm contract and
+existing Policy/RBAC controls. Read-only inventory may still be sensitive.

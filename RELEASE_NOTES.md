@@ -11,6 +11,14 @@ Add the root Gemini CLI extension manifest and discovery metadata, using the exi
 
 Runtime infrastructure operations, permissions, TLS defaults and confirmation behavior are unchanged. No new vSphere/VCF 9.x or live product compatibility is claimed. ClawHub skill and bundle verdicts are checked separately after publication; documentation corrections are not a clean-scan claim.
 
+## v2.5.2 (2026-11-10) — Split MCP registration with shared runtime
+
+Separate service and operation registration modules while retaining the server facade, shared connection/Policy/error state, tool order, schemas and destructive gates. Extend structural CLI guard checks to cover extracted source and explicit runtime delegation; retain positive controls.
+
+Validation: existing suites, complete CLI/MCP surface comparison, structural guard checks and security scanning; exact results are retained in the private release record. Live 9.1/Supervisor, PAIS, NSX and Horizon validation is not established by synthetic tests.
+
+中文：本轮修复和重构范围见上述说明；保留既有 Policy、审计及确认门。合成测试不代表 9.1/Supervisor、PAIS、NSX 或 Horizon 正向真机验证。
+
 ## v2.5.0 — deprecated MCP alias migration and dependency security (2026-11-08)
 
 * **MCP client migration:** the deprecated `confirmed` / `dry_run` aliases are removed from write tools as scheduled for the next minor release. Old arguments are rejected without executing a write. Omit `confirm` for a preview; use `confirm=true` to request execution through the same fresh measurement, Policy and audit gate. CLI dry-run options are unchanged.
