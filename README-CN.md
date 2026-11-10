@@ -53,7 +53,7 @@ AVI（NSX 高级负载均衡器）管理与 AKO Kubernetes 运维工具 — 10 �
 需要 Python `>=3.10` 和 `uv`。
 
 ```bash
-uv tool install vmware-avi==2.5.1
+uv tool install vmware-avi==2.5.2
 vmware-avi --help
 ```
 
@@ -66,13 +66,13 @@ vmware-avi --help
 
 ```bash
 # 通过 uv 安装（推荐）
-uv tool install vmware-avi==2.5.1
+uv tool install vmware-avi==2.5.2
 
 # 或通过 pip 安装
-pip install vmware-avi==2.5.1
+pip install vmware-avi==2.5.2
 
 # 国内镜像加速
-pip install vmware-avi==2.5.1 -i https://pypi.tuna.tsinghua.edu.cn/simple
+pip install vmware-avi==2.5.2 -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 # 验证安装
 vmware-avi doctor
@@ -179,7 +179,7 @@ vmware-avi doctor    # 检查 Controller 连通性 + kubeconfig + avisdk
   "mcpServers": {
     "vmware-avi": {
       "command": "uvx",
-      "args": ["--from", "vmware-avi==2.5.1", "vmware-avi-mcp"],
+      "args": ["--from", "vmware-avi==2.5.2", "vmware-avi-mcp"],
       "env": {
         "VMWARE_AVI_CONFIG": "~/.vmware-avi/config.yaml"
       }
@@ -197,7 +197,7 @@ vmware-avi doctor    # 检查 Controller 连通性 + kubeconfig + avisdk
 
 MCP server 通过 [Model Context Protocol](https://modelcontextprotocol.io) 暴露全部 28 个工具，适配任何 MCP 兼容客户端。
 
-**v1.5.15+ 推荐方式**：完成 `uv tool install vmware-avi==2.5.1` 后，**一条命令启动 MCP**：
+**v1.5.15+ 推荐方式**：完成 `uv tool install vmware-avi==2.5.2` 后，**一条命令启动 MCP**：
 
 ```bash
 # 推荐 — 单命令，无网络依赖
@@ -230,7 +230,7 @@ VMWARE_AVI_CONFIG=/path/to/config.yaml vmware-avi mcp
 
 ```bash
 # 不想安装，临时运行（每次需要联网 resolve 依赖）
-uvx --from vmware-avi==2.5.1 vmware-avi mcp
+uvx --from vmware-avi==2.5.2 vmware-avi mcp
 
 # 旧 entry point（仍可用，向后兼容）
 vmware-avi-mcp
@@ -658,7 +658,7 @@ VMware Skills 家族包含 14 个 MCP Server 和共享 Policy 库。按职责选
 
 | 技能 | 范围 | 工具数 | 安装 |
 |------|------|:------:|------|
-| **[vmware-avi](https://github.com/vmware-skills/VMware-AVI)** | AVI 负载均衡、AKO K8s 运维 | 28 | `uv tool install vmware-avi==2.5.1` |
+| **[vmware-avi](https://github.com/vmware-skills/VMware-AVI)** | AVI 负载均衡、AKO K8s 运维 | 28 | `uv tool install vmware-avi==2.5.2` |
 | **[vmware-aiops](https://github.com/vmware-skills/VMware-AIops)** | VM 生命周期、部署、Guest Ops、集群 | 49 | `uv tool install vmware-aiops` |
 | **[vmware-monitor](https://github.com/vmware-skills/VMware-Monitor)** | 只读监控、告警、事件 | 27 | `uv tool install vmware-monitor` |
 | **[vmware-storage](https://github.com/vmware-skills/VMware-Storage)** | 数据存储、iSCSI、vSAN | 11 | `uv tool install vmware-storage` |
@@ -691,3 +691,6 @@ vmware-policy ≥ 1.18 下仍然生效（`vmware-audit policy` 会列出因改�
 ## 许可证
 
 MIT
+
+MCP 安全标注是客户端提示，不是强制弹窗，也不能证明独立的人类审批。应以工具
+实际的预览/确认契约及既有 Policy/RBAC 为准；只读库存也可能包含敏感信息。

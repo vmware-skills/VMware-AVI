@@ -1,6 +1,6 @@
 {
   "name": "vmware-avi",
-  "version": "2.5.1",
+  "version": "2.5.2",
   "description": "AVI (NSX Advanced Load Balancer) management and AKO Kubernetes operations tool",
   "mcpServers": {
     "vmware-avi": {
@@ -8,7 +8,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "vmware-avi==2.5.1",
+        "vmware-avi==2.5.2",
         "vmware-avi-mcp"
       ]
     }

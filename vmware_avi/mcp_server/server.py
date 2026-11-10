@@ -4,6 +4,7 @@ Exposes 28 tools (22 read, 6 write) for AVI Controller + AKO K8s operations.
 Entry point: vmware-avi-mcp (defined in pyproject.toml).
 """
 
+import sys as _sys
 import json
 import logging
 import re
@@ -15,7 +16,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from mcp.server.fastmcp import FastMCP
-from vmware_policy import (
+from vmware_policy import (  # noqa: F401 — compatibility/runtime export
     describe_tool_parameters,
     report_tool_failure,
     sanitize,
@@ -378,389 +379,30 @@ def _gated(tool: str, run) -> dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="low")
-def list_virtual_services(controller: Optional[str] = None) -> str:
-    """[READ] List Virtual Services on the AVI Controller.
-
-    Returns Name, Enabled, VIP and short UUID for every VS in one call; it
-    cannot be paged or filtered, and carries no health score.
-    Use this before drilling into one VS with get_virtual_service_status.
-
-    Args:
-        controller: Controller name from config (optional, uses default).
-    """
-    from vmware_avi.ops.vs_mgmt import list_virtual_services as _ops_list_virtual_services
-
-    return _capture_output(_ops_list_virtual_services, controller)
 
 
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="low")
-def get_virtual_service_status(name: str) -> str:
-    """[READ] Detailed status for one Virtual Service: VIP, pool, health,
-    connections, throughput.
-
-    Returns one detail block, not a list. Use list_virtual_services first for the exact name —
-    a name that does not match exactly fails. If the runtime read fails, the block says so
-    (with the HTTP status) and health is UNKNOWN. Then get_virtual_service_analytics for
-    metrics, get_virtual_service_error_logs for 5xx.
-
-    Args:
-        name: Exact Virtual Service name.
-    """
-    from vmware_avi.ops.vs_mgmt import show_vs_status
-
-    return _capture_output(show_vs_status, name)
 
 
-@mcp.tool(
-    annotations={
-        "readOnlyHint": False,
-        "destructiveHint": True,
-        "idempotentHint": False,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(
-    risk_level="high",
-    undo=lambda params, result: (
-        {
-            "tool": "set_virtual_service_enabled",
-            "params": {
-                "name": params.get("name"),
-                "enable": not params.get("enable"),
-                "confirm": True,
-            },
-            "skill": "avi",
-            "note": (
-                "Inverse of set_virtual_service_enabled: toggle the Virtual Service "
-                "back to its prior state."
-            ),
-        }
-        if isinstance(result, dict) and result.get("action") in ("enabled", "disabled")
-        else None
-    ),
-)
-def set_virtual_service_enabled(
-    name: str,
-    enable: bool,
-    confirm: bool = False,
-) -> dict:
-    """[WRITE] Enable or disable a Virtual Service. Disabling stops all traffic to it.
-
-    Without confirm=True this only previews: it returns blast_radius (the VS
-    name and uuid, whether it is enabled now, its VIPs and oper status, and the
-    pools and member counts behind it) and changes nothing. Show that to the
-    user and get their explicit decision. Do not set confirm=True on your own
-    because the user asked earlier: they have not seen what it changes yet.
-    A VS already in the requested state returns action "noop".
-
-    Refused with confirm=True: a VS whose uuid or pools cannot be read (the
-    change would be blind). Use get_virtual_service_status first to check current state.
-
-    Args:
-        name: Exact Virtual Service name.
-        enable: true to enable, false to disable.
-        confirm: False (default) returns the blast radius and changes nothing.
-            True applies it.
-    """
-    from vmware_avi.ops import lb_gate
-    from vmware_avi.ops.vs_mgmt import toggle_vs
-    from vmware_avi.ops.write_gate import resolve_confirm
-
-    decision = resolve_confirm(confirm)
-    return _gated("set_virtual_service_enabled", lambda: lb_gate.vs_toggle(
-        name, enable, act=decision.act,
-        apply=lambda: _capture_output(toggle_vs, name, enable=enable, skip_prompt=True),
-    ))
 
 
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="low")
-def list_lb_pools(vs_filter: Optional[str] = None) -> str:
-    """[READ] Discover pools on the Controller.
-
-    Returns Name, member count, Enabled and short UUID per pool. Use this before
-    list_lb_pool_members: pools are often named differently from the VS that use them.
-
-    Args:
-        vs_filter: Substring matching VS names (e.g. 'web') — returns only the
-            pools those VS reference. Omit for all pools.
-    """
-    from vmware_avi.ops.pool_mgmt import list_pools
-
-    return _capture_output(list_pools, vs_filter)
 
 
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="low")
-def list_lb_pool_members(pool: str) -> str:
-    """[READ] List the members of a pool.
-
-    Returns Server IP, Port, Enabled and Ratio per member. Use before
-    enable_lb_pool_member or disable_lb_pool_member; run list_lb_pools first for the pool
-    name. Reports configured state only, not live health-monitor results.
-
-    Args:
-        pool: Exact pool name as shown by list_lb_pools — matched literally, not
-            fuzzily, and an unknown name is refused rather than ignored. Pools
-            are often named differently from the Virtual Services that use
-            them, so do not infer it from a VS name.
-    """
-    from vmware_avi.ops.pool_mgmt import list_pool_members
-
-    return _capture_output(list_pool_members, pool)
 
 
-@mcp.tool(
-    annotations={
-        "readOnlyHint": False,
-        "destructiveHint": False,
-        "idempotentHint": False,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="medium")
-def enable_lb_pool_member(pool: str, server: str) -> str:
-    """[WRITE] Enable a pool member so it receives traffic again.
-
-    Returns a one-line confirmation. Use list_lb_pool_members first to verify the server
-    IP. The server must already belong to the pool — this adds nothing.
-
-    Args:
-        pool: Exact pool name as shown by list_lb_pools — matched literally, not
-            fuzzily, and an unknown name is refused rather than ignored. Pools
-            are often named differently from the Virtual Services that use
-            them, so do not infer it from a VS name.
-        server: Server IP address.
-    """
-    from vmware_avi.ops.pool_mgmt import toggle_pool_member
-
-    return _capture_output(toggle_pool_member, pool, server, enable=True)
 
 
-@mcp.tool(
-    annotations={
-        "readOnlyHint": False,
-        "destructiveHint": True,
-        "idempotentHint": False,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="high")
-def disable_lb_pool_member(
-    pool: str,
-    server: str,
-    confirm: bool = False,
-) -> dict:
-    """[WRITE] Disable a pool member with graceful drain — existing connections
-    complete, no new traffic.
-
-    Without confirm=True this only previews: it returns blast_radius (pool name
-    and uuid, the member's IP/port/state, and how many members are enabled
-    before and after) and changes nothing. Show that to the user and get their
-    explicit decision. Do not set confirm=True on your own because the user
-    asked earlier: they have not seen what it changes yet. An already disabled
-    member returns action "noop".
-
-    Refused with confirm=True: the pool's only enabled member (the pool would
-    serve nothing — enable another first, or use set_virtual_service_enabled on purpose), an IP
-    that matches more than one member, and a pool whose members cannot be read.
-    Use for maintenance or rolling deployments; run list_lb_pool_members first for the
-    server IP, enable_lb_pool_member to reverse it.
-
-    Args:
-        pool: Exact pool name as shown by list_lb_pools — matched literally, not
-            fuzzily, and an unknown name is refused rather than ignored. Pools
-            are often named differently from the Virtual Services that use
-            them, so do not infer it from a VS name.
-        server: Server IP address.
-        confirm: False (default) returns the blast radius and changes nothing.
-            True applies it.
-    """
-    from vmware_avi.ops import lb_gate
-    from vmware_avi.ops.pool_mgmt import toggle_pool_member
-    from vmware_avi.ops.write_gate import resolve_confirm
-
-    decision = resolve_confirm(confirm)
-    return _gated("disable_lb_pool_member", lambda: (
-        lb_gate.pool_member_disable(
-            pool, server, act=decision.act,
-            apply=lambda: _capture_output(
-                toggle_pool_member, pool, server, enable=False, skip_prompt=True
-            ),
-        )
-    ))
 
 
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="low")
-def list_ssl_certs() -> str:
-    """[READ] List SSL/TLS certificates stored on the AVI Controller.
-
-    Returns Name, Subject, Expiry and Type per certificate, in one call that
-    cannot be paged or filtered. Use for inventory or a certificate's exact name
-    — use check_ssl_cert_expiry instead for only the ones expiring soon.
-    """
-    from vmware_avi.ops.ssl_mgmt import list_certificates
-
-    return _capture_output(list_certificates)
 
 
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="low")
-def check_ssl_cert_expiry(days: int = 30) -> str:
-    """[READ] Check which SSL certificates expire within N days (default 30).
-
-    Returns name, expiry date and days remaining, soonest first. Use this
-    instead of list_ssl_certs when you only want certificates near expiry. Expired
-    certs are included, with negative days remaining. Certificates whose expiry
-    could not be read are counted and named separately — they are unknown, not
-    "not expiring".
-
-    Args:
-        days: Report certs expiring within this many days (default 30).
-    """
-    from vmware_avi.ops.ssl_mgmt import check_expiry
-
-    return _capture_output(check_expiry, days)
 
 
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="low")
-def get_virtual_service_analytics(vs_name: str) -> str:
-    """[READ] Performance metrics for one Virtual Service over the last hour.
-
-    Returns L4 (bandwidth, connections) and L7 (latency, % errors, responses)
-    averages over a fixed window that cannot be changed (12 samples, 5 min
-    apart). Empty output means no traffic, not an error. Use when get_virtual_service_status
-    shows degraded health; get_virtual_service_error_logs gives per-request detail.
-
-    Args:
-        vs_name: Exact Virtual Service name, case-sensitive, from list_virtual_services.
-    """
-    from vmware_avi.ops.analytics import show_analytics
-
-    return _capture_output(show_analytics, vs_name)
 
 
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="low")
-def get_virtual_service_error_logs(vs_name: str, since: str = "1h") -> str:
-    """[READ] Recent request error logs for one Virtual Service.
-
-    Returns up to 50 lines — timestamp, HTTP status, URI path, client IP — for
-    status 400 and above. Use this instead of get_virtual_service_analytics for per-request
-    detail. An empty result may mean no errors, or capture disabled on the VS.
-
-    Args:
-        vs_name: Exact Virtual Service name, from list_virtual_services.
-        since: Window — seconds or '30m', '1h', '2d' (default '1h').
-    """
-    from vmware_avi.ops.analytics import show_error_logs
-
-    return _capture_output(show_error_logs, vs_name, since)
 
 
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="low")
-def list_service_engines() -> str:
-    """[READ] List Service Engines (AVI data-plane VMs) on the Controller.
-
-    Returns Name, management IP, status (e.g. OPER_UP) and SE Group per SE, in
-    one call that cannot be paged or filtered. Use to inventory capacity or find
-    an SE's name and IP — use get_service_engine_health instead for degraded VS health.
-    """
-    from vmware_avi.ops.se_mgmt import list_service_engines as _ops_list_service_engines
-
-    return _capture_output(_ops_list_service_engines)
 
 
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="low")
-def get_service_engine_health() -> str:
-    """[READ] Health of every Service Engine — operational status and VS counts.
-
-    Returns name, operational state and the number of VSes placed on each SE.
-    Use when VS health degrades to check if the issue is at the SE level;
-    list_service_engines gives the management IP and SE Group,
-    get_virtual_service_status the affected VS.
-    An SE hosting no VS reports 0, not an error.
-    """
-    from vmware_avi.ops.se_mgmt import check_se_health
-
-    return _capture_output(check_se_health)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -768,461 +410,72 @@ def get_service_engine_health() -> str:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="low")
-def get_ako_status(context: Optional[str] = None) -> str:
-    """[READ] Check AKO (AVI Kubernetes Operator) pod status in Kubernetes.
-
-    Returns pod name, phase, ready flag, restart count and namespace. First step
-    for Ingress or LoadBalancer issues in Tanzu/K8s; follow with get_ako_logs when
-    it is not Running. Looks in one context's AKO namespace only — run
-    list_ako_clusters if not found.
-
-    Args:
-        context: K8s context name (optional, uses current context).
-    """
-    from vmware_avi.ops.ako_pod import check_ako_status
-
-    return _capture_output(check_ako_status, context)
-
-
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="low")
-def get_ako_logs(
-    tail: int = 100, since: Optional[str] = None, context: Optional[str] = None
-) -> str:
-    """[READ] AKO pod logs — Ingress creation failures, sync errors, Controller
-    connectivity.
-
-    Returns raw log text, not a table. Use when get_ako_status shows the pod
-    unhealthy or diff_ako_sync reports a missing Ingress. Only the running
-    container's logs are returned.
-
-    Args:
-        tail: Number of log lines (default 100).
-        since: Narrows the window, e.g. '30m', '1h'.
-        context: K8s context (optional, uses current).
-    """
-    from vmware_avi.ops.ako_pod import view_ako_logs
-
-    return _capture_output(view_ako_logs, tail, since or "", context)
-
-
-@mcp.tool(
-    annotations={
-        "readOnlyHint": False,
-        "destructiveHint": True,
-        "idempotentHint": False,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="high")
-def restart_ako(
-    context: Optional[str] = None,
-    confirm: bool = False,
-) -> dict:
-    """[WRITE] Restart the AKO pod by deleting it — its StatefulSet recreates it.
-
-    Without confirm=True this only previews: it returns blast_radius (context,
-    namespace, the pod's name, uid, phase and restarts, and the Ingresses whose
-    programming pauses until the new pod is Running) and changes nothing. Show
-    that to the user and get their explicit decision. Do not set confirm=True
-    on your own because the user asked earlier: they have not seen what it
-    changes yet. The pod deleted is the one measured (uid precondition).
-
-    Refused with confirm=True: a pod already terminating, and a pod or Ingress
-    list that cannot be read. Use when AKO is stuck or after config changes;
-    brief traffic disruption is possible. Run get_ako_status afterwards, and
-    get_ako_logs if the pod is not Running.
-
-    Args:
-        context: K8s context name (optional).
-        confirm: False (default) returns the blast radius and changes nothing.
-            True applies it.
-    """
-    from vmware_avi.ops import ako_gate
-    from vmware_avi.ops.ako_pod import restart_ako as _ops_restart_ako
-    from vmware_avi.ops.write_gate import resolve_confirm
-
-    decision = resolve_confirm(confirm)
-    effect = ("Deletes the AKO pod; its StatefulSet recreates it. Ingress programming pauses "
-              "until the new pod is Running; brief traffic disruption is possible.")
-    return _gated("restart_ako", lambda: ako_gate.delete_ako_pod(
-        "restart_ako", context, effect, act=decision.act,
-        apply=lambda uid: _capture_output(_ops_restart_ako, context, skip_prompt=True, uid=uid),
-    ))
-
-
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="low")
-def get_ako_version(context: Optional[str] = None) -> str:
-    """[READ] AKO version running in a cluster, read from the pod's image tag.
-
-    Returns the pod name and an Image/Version pair per container. Use it to
-    check compatibility with the Controller, and before diff_ako_config or
-    upgrade_ako_config so both target the installed chart. The tag is the only
-    source, so 'latest' reports 'latest', not a number.
-
-    Args:
-        context: K8s context name (optional).
-    """
-    from vmware_avi.ops.ako_pod import show_ako_version
-
-    return _capture_output(show_ako_version, context)
-
-
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="low")
-def get_ako_config() -> str:
-    """[READ] The AKO Helm release's values — controller IP, cloud name, network
-    settings, feature flags.
-
-    Returns YAML as helm reports it. Use this first to read the live config; use
-    diff_ako_config instead to see what an upgrade would change. Only values
-    supplied at install time appear; chart defaults do not."""
-    from vmware_avi.ops.ako_config import show_ako_config
-
-    return _capture_output(show_ako_config)
-
-
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-# helm renders avicredentials.password and the avi-secret Secret into its
-# diff output. That is a free-form string, so the shared credential-key net
-# cannot see it — the declaration is the only thing that keeps it out of the
-# audit row (VMware-Policy 1.10.0). It does nothing about the *displayed* copy,
-# which in MCP mode is this tool's result: diff_ako_config redacts that.
-@vmware_tool(risk_level="low", sensitive_result=True)
-def diff_ako_config(chart_version: str = "") -> str:
-    """[READ] Pending Helm value changes that have not been applied yet.
-
-    Returns helm's diff output; empty means nothing would change. Credential
-    values in it read `<redacted>` — that is this skill blanking them, not the
-    configured value.
-    Use this before upgrade_ako_config — it runs the same command, so the
-    preview is real. Note: with chart_version empty the registry's moving latest
-    is resolved, so two runs can differ with no local change; read get_ako_version
-    and pass it to both.
-
-    Args:
-        chart_version: Pin the chart, e.g. "1.11.1". Empty = registry latest.
-    """
-    from vmware_avi.ops.ako_config import diff_ako_config as _ops_diff_ako_config
-
-    return _capture_output(_ops_diff_ako_config, chart_version=chart_version)
-
-
-@mcp.tool(
-    annotations={
-        "readOnlyHint": False,
-        "destructiveHint": False,
-        "idempotentHint": False,
-        "openWorldHint": True,
-    }
-)
-# Same helm output as diff_ako_config — see the note there.
-@vmware_tool(risk_level="medium", sensitive_result=True)
-def upgrade_ako_config(
-    confirm: bool = False,
-    chart_version: str = "",
-) -> dict:
-    """[WRITE] Apply an AKO Helm upgrade to the avi-system release.
-
-    Finds the avi-system release automatically and upgrades the Broadcom OCI
-    chart with --reuse-values. Without confirm=True this only previews: it
-    returns blast_radius (release, the chart and app version it is on, revision
-    and status, the chart it would move to) plus helm_dry_run, the output of
-    `helm upgrade --dry-run`, and changes nothing. Show that to the user and get
-    their explicit decision. Do not set confirm=True on your own because the
-    user asked earlier: they have not seen what it changes yet.
-
-    Refused with confirm=True: a failing dry-run (the real upgrade would fail
-    too), a release with another helm operation pending, and a release whose
-    status cannot be read. Helm output has credential values blanked to
-    `<redacted>` by this skill. Run diff_ako_config first to review the change.
-
-    Args:
-        confirm: False (default) returns the blast radius and changes nothing.
-            True applies it.
-        chart_version: Pin the chart, e.g. "1.11.1". Empty = registry latest,
-            resolved at apply time, so it can differ from the preview.
-    """
-    from vmware_avi.ops import ako_config, ako_gate
-    from vmware_avi.ops.write_gate import resolve_confirm
-
-    decision = resolve_confirm(confirm)
-
-    def apply() -> str:
-        return _capture_output(
-            ako_config.upgrade_ako, False, chart_version=chart_version, skip_prompt=True
-        )
-
-    return _gated("upgrade_ako_config",
-                  lambda: ako_gate.upgrade(chart_version, act=decision.act, apply=apply))
-
-
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="low")
-def check_ako_ingress(namespace: str, context: Optional[str] = None) -> str:
-    """[READ] Validate every Ingress in one namespace: IngressClass and TLS
-    secret references that would stop AKO creating a Virtual Service.
-
-    Returns name, IngressClass, issues and OK/ISSUES per Ingress. Run
-    list_ako_ingresses first for namespace names; use diagnose_ako_ingress instead
-    for one named Ingress. Covers one namespace only, and TLS checks are skipped
-    when its secrets cannot be listed.
-
-    Args:
-        namespace: K8s namespace to check.
-        context: K8s context name (optional).
-    """
-    from vmware_avi.ops.ako_ingress import check_ingress_annotations
-
-    return _capture_output(check_ingress_annotations, namespace, context)
-
-
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="low")
-def list_ako_ingresses(context: Optional[str] = None) -> str:
-    """[READ] Inventory Kubernetes Ingresses across all namespaces.
-
-    Returns Namespace, Ingress name, Host(s) and IngressClass per Ingress. Start
-    here for namespace and Ingress names, then pass them to check_ako_ingress or
-    diagnose_ako_ingress. Lists the K8s side only — use diff_ako_sync for
-    Ingresses with no Controller object.
-
-    Args:
-        context: K8s context name (optional).
-    """
-    from vmware_avi.ops.ako_ingress import show_ingress_map
-
-    return _capture_output(show_ingress_map, context)
-
-
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="low")
-def diagnose_ako_ingress(
-    name: str, namespace: str = "default", context: Optional[str] = None
-) -> str:
-    """[READ] Diagnose why one Ingress has no corresponding AVI Virtual Service.
-
-    Validates IngressClass ('avi'/'avi-lb'), TLS secrets and backend Services.
-    Returns annotations, a numbered issue list and kubectl fixes. "Not
-    found"/"missing" is reported only for a 404; any other error reading the
-    Ingress, a TLS secret or a backend Service says it could not be read (with
-    the HTTP status). Use list_ako_ingresses first to find Ingresses lacking a VS. Checks configuration
-    only; when it is clean, try get_ako_logs and get_ako_sync_status.
-
-    Args:
-        name: Exact Ingress resource name.
-        namespace: Namespace holding the Ingress (default 'default').
-        context: kubeconfig context (optional), from list_ako_clusters.
-    """
-    from vmware_avi.ops.ako_ingress import diagnose_ingress
-
-    return _capture_output(diagnose_ingress, name, namespace, context)
-
-
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="low")
-def get_ako_sync_status(context: Optional[str] = None) -> str:
-    """[READ] Compare the number of K8s Ingresses with the number of AVI Virtual
-    Services.
-
-    Returns both counts and a match/mismatch verdict. Use this first as a cheap
-    check, then diff_ako_sync for which objects differ. A count comparison only
-    — in AKO shard mode many Ingresses share one VS, so a mismatch does not by
-    itself mean trouble.
-
-    Args:
-        context: K8s context name (optional).
-    """
-    from vmware_avi.ops.ako_sync import check_sync_status
-
-    return _capture_output(check_sync_status, context)
-
-
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="low")
-def diff_ako_sync(context: Optional[str] = None) -> str:
-    """[READ] List Ingresses with no matching Virtual Service or pool on the
-    Controller.
-
-    Returns Type, namespace/name and Status per suspect Ingress. Use when
-    get_ako_sync_status reports a mismatch; force_ako_sync reconciles. Shard-mode
-    Ingresses are matched heuristically against AKO pool names, so confirm a
-    'Missing' result with list_lb_pools before acting.
-
-    Args:
-        context: K8s context name (optional).
-    """
-    from vmware_avi.ops.ako_sync import show_sync_diff
-
-    return _capture_output(show_sync_diff, context)
-
-
-@mcp.tool(
-    annotations={
-        "readOnlyHint": False,
-        "destructiveHint": True,
-        "idempotentHint": False,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="high")
-def force_ako_sync(
-    context: Optional[str] = None,
-    confirm: bool = False,
-) -> dict:
-    """[WRITE] Force AKO to resync all K8s resources with the AVI Controller.
-
-    The resync restarts the AKO pod so it rebuilds every Virtual Service, pool
-    and VS-VIP from the cluster's current resources. Without confirm=True this
-    only previews: it returns blast_radius (context, namespace, the pod's name,
-    uid and phase, and the Ingresses it re-programs) and changes nothing. Show
-    that to the user and get their explicit decision. Do not set confirm=True
-    on your own because the user asked earlier: they have not seen what it
-    changes yet.
-
-    Refused with confirm=True: a pod already terminating, and a pod or Ingress
-    list that cannot be read. Use when drift is detected; may cause brief
-    traffic disruption. Run diff_ako_sync first to see what is out of sync,
-    then get_ako_sync_status.
-
-    Args:
-        context: K8s context name (optional).
-        confirm: False (default) returns the blast radius and changes nothing.
-            True applies it.
-    """
-    from vmware_avi.ops import ako_gate
-    from vmware_avi.ops.ako_sync import force_resync
-    from vmware_avi.ops.write_gate import resolve_confirm
-
-    decision = resolve_confirm(confirm)
-    effect = ("Deletes the AKO pod to force a full resync: every Virtual Service, pool and VS-VIP "
-              "is rebuilt from the cluster's resources; brief traffic disruption is possible.")
-    return _gated("force_ako_sync", lambda: ako_gate.delete_ako_pod(
-        "force_ako_sync", context, effect, act=decision.act,
-        apply=lambda uid: _capture_output(force_resync, context, skip_prompt=True, uid=uid),
-    ))
-
-
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="low")
-def list_ako_clusters() -> str:
-    """[READ] List every Kubernetes context in the active kubeconfig and whether
-    AKO is deployed there.
-
-    Returns Context, AKO Status (pod phase, 'Not deployed' when kubectl answered
-    with no AKO pods, or 'Unreachable'/'Unreadable' with kubectl's reason when it
-    could not read the context — unknown, not absent) and Version per context. Fails
-    when no context could be read. Requires kubectl on PATH; every context is
-    probed, so unreachable clusters add latency. Start here for context names, then pass one to
-    get_ako_status, get_ako_logs or diagnose_ako_ingress.
-    """
-    from vmware_avi.ops.ako_multi_cluster import list_clusters
-
-    return _capture_output(list_clusters)
-
-
-@mcp.tool(
-    annotations={
-        "readOnlyHint": True,
-        "destructiveHint": False,
-        "idempotentHint": True,
-        "openWorldHint": True,
-    }
-)
-@vmware_tool(risk_level="low")
-def get_ako_amko_status() -> str:
-    """[READ] AMKO (AVI Multi-Cluster Kubernetes Operator) GSLB status.
-
-    Returns raw kubectl output: the AMKO pods in avi-system, then the GSLBConfig
-    YAML if one exists. 'AMKO not deployed' means kubectl answered and found no
-    AMKO pods; if kubectl cannot read the cluster the call fails with its reason.
-    A GSLBConfig that cannot be read is reported, not skipped. Use this only for
-    multi-cluster GSLB questions — for single-cluster AKO health use
-    get_ako_status instead. Always reads the current
-    kubectl context; see list_ako_clusters."""
-    from vmware_avi.ops.ako_multi_cluster import show_amko_status
-
-    return _capture_output(show_amko_status)
+
+from vmware_avi.mcp_server._tools_services import register_tools as _register_services
+
+(
+    list_virtual_services,
+    get_virtual_service_status,
+    set_virtual_service_enabled,
+    list_lb_pools,
+    list_lb_pool_members,
+    enable_lb_pool_member,
+    disable_lb_pool_member,
+    list_ssl_certs,
+    check_ssl_cert_expiry,
+    get_virtual_service_analytics,
+    get_virtual_service_error_logs,
+    list_service_engines,
+    get_service_engine_health,
+    get_ako_status,
+) = _register_services(mcp, _sys.modules[__name__])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+from vmware_avi.mcp_server._tools_operations import register_tools as _register_operations
+
+(
+    get_ako_logs,
+    restart_ako,
+    get_ako_version,
+    get_ako_config,
+    diff_ako_config,
+    upgrade_ako_config,
+    check_ako_ingress,
+    list_ako_ingresses,
+    diagnose_ako_ingress,
+    get_ako_sync_status,
+    diff_ako_sync,
+    force_ako_sync,
+    list_ako_clusters,
+    get_ako_amko_status,
+) = _register_operations(mcp, _sys.modules[__name__])
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

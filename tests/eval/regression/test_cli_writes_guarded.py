@@ -74,6 +74,12 @@ def _ops_used(node: ast.AST, func_map: dict[str, str], mods: set[str]) -> set[st
     for n in ast.walk(node):
         if isinstance(n, ast.Name) and n.id in func_map:
             out.add(func_map[n.id])
+        elif isinstance(n, ast.Attribute) and isinstance(n.value, ast.Name) and n.value.id == "runtime" and n.attr in func_map:
+            out.add(func_map[n.attr])
+        elif (isinstance(n, ast.Attribute) and isinstance(n.value, ast.Attribute)
+              and isinstance(n.value.value, ast.Name) and n.value.value.id == "runtime"
+              and n.value.attr in mods):
+            out.add(n.attr)
         elif (
             isinstance(n, ast.Attribute)
             and isinstance(n.value, ast.Name)
@@ -85,15 +91,22 @@ def _ops_used(node: ast.AST, func_map: dict[str, str], mods: set[str]) -> set[st
 
 def _write_ops() -> frozenset[str]:
     targets = _write_tool_names()
-    assert targets, "no [WRITE] tools (readOnlyHint=False) — the MCP surface derivation is vacuous"
-    tree = ast.parse(SERVER_FILE.read_text(encoding="utf-8"))
+    assert targets, "no write tools — vacuous"
+    # Include registration modules; the public server is now a facade.
+    server = SERVER_FILE
+    paths = sorted(server.parent.rglob("*.py"))
+    assert paths, "no MCP source files"
+    tree = ast.Module(body=[n for path in paths
+                           for n in ast.parse(path.read_text(encoding="utf-8")).body],
+                      type_ignores=[])
     func_map, mods = _ops_refs(tree)
+    found = {n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    assert targets <= found, f"write tool sources were not scanned: {targets - found}"
     ops: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef) and node.name in targets:
             ops |= _ops_used(node, func_map, mods)
     return frozenset(ops)
-
 
 def _decorator_names(node: ast.FunctionDef) -> set[str]:
     names: set[str] = set()
@@ -201,16 +214,16 @@ def test_named_high_blast_radius_commands_are_derived_and_guarded():
 
 
 def _op_to_mcp_tools() -> dict[str, set[str]]:
-    """Write ops function -> the MCP write tools whose body uses it.
-
-    Uses ``_ops_used`` (a *reference*, not only a call) for the same reason the
-    write-op derivation does: AVI tools hand the op to ``_capture_output(op,
-    ...)``, so the twin is the tool that passes the same ops function the CLI
-    command runs, not the helper it passes it through.
-    """
+    """Map all registered write sources, including shared runtime delegation."""
     targets = _write_tool_names()
-    tree = ast.parse(SERVER_FILE.read_text(encoding="utf-8"))
+    paths = sorted(SERVER_FILE.parent.rglob("*.py"))
+    assert paths
+    tree = ast.Module(body=[n for path in paths
+                           for n in ast.parse(path.read_text(encoding="utf-8")).body],
+                      type_ignores=[])
     func_map, mods = _ops_refs(tree)
+    found = {n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)}
+    assert targets <= found, f"write tool sources missing: {targets - found}"
     out: dict[str, set[str]] = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef) and node.name in targets:
@@ -339,3 +352,9 @@ def test_vs_enable_and_disable_audit_rows_record_the_direction(monkeypatch):
 
     assert recorded["enable"] == {"name": "web-vs", "enable": True}, recorded
     assert recorded["disable"] == {"name": "web-vs", "enable": False}, recorded
+
+
+def test_shared_runtime_delegation_is_not_invisible_to_the_write_scan():
+    """Mutation/control: an unsafe op moved behind runtime must remain visible."""
+    tree = ast.parse("def write():\n    runtime._op()\n    runtime.ops.remove()\n")
+    assert _ops_used(tree, {"_op": "destroy"}, {"ops"}) == {"destroy", "remove"}

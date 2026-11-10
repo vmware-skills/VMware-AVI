@@ -5,7 +5,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "vmware-avi==2.5.1",
+        "vmware-avi==2.5.2",
         "vmware-avi-mcp"
       ]
     }

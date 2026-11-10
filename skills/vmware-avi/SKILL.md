@@ -55,7 +55,7 @@ AVI (NSX Advanced Load Balancer) application delivery and AKO Kubernetes operati
 ## Quick Install
 
 ```bash
-uv tool install vmware-avi==2.5.1
+uv tool install vmware-avi==2.5.2
 vmware-avi doctor            # checks Controller connectivity + kubeconfig + avisdk
 ```
 
@@ -237,7 +237,7 @@ Force resync triggers AKO to re-reconcile all K8s objects. If the drift persists
 ## Setup
 
 ```bash
-uv tool install vmware-avi==2.5.1
+uv tool install vmware-avi==2.5.2
 mkdir -p ~/.vmware-avi
 vmware-avi init              # generates config.yaml and .env templates
 chmod 600 ~/.vmware-avi/.env
